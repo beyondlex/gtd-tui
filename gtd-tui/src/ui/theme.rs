@@ -8,6 +8,7 @@ pub struct CalendarTheme {
     pub weekend: Style,
     pub today: Style,
     pub selected: Style,
+    pub bracket: Style,
 }
 
 impl CalendarTheme {
@@ -20,12 +21,15 @@ impl CalendarTheme {
             .unwrap_or_else(|| Style::default().fg(Color::Green).add_modifier(Modifier::BOLD));
         let selected = parse_style(config.selected.as_deref())
             .unwrap_or_else(|| Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD));
+        let bracket = parse_style(config.bracket.as_deref())
+            .unwrap_or_else(|| Style::default().fg(Color::Magenta));
 
         Self {
             weekday,
             weekend,
             today,
             selected,
+            bracket,
         }
     }
 }
@@ -43,6 +47,7 @@ impl Default for CalendarTheme {
             selected: Style::default()
                 .fg(Color::Blue)
                 .add_modifier(Modifier::BOLD),
+            bracket: Style::default().fg(Color::Magenta),
         }
     }
 }

@@ -61,6 +61,8 @@ fn main() -> Result<()> {
             }
         }
 
+        app.on_tick();
+
         if app.should_quit {
             break;
         }

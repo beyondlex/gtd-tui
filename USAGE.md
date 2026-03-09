@@ -65,6 +65,7 @@ weekday = "bold"
 weekend = "red bold"
 today = "green bold"
 selected = "blue bold"
+bracket = "magenta"
 ```
 
 可用颜色：black, red, green, yellow, blue, magenta, cyan, gray, darkgray, lightred, lightgreen, lightyellow, lightblue, lightmagenta, lightcyan, white, reset。

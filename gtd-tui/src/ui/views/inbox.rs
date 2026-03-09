@@ -49,13 +49,34 @@ fn editor_lines(app: &App, editor: &crate::app::EditorState) -> Vec<Line<'static
     let due_prefix = focus_prefix(editor.focus == Focus::DueDate);
     let checklist_prefix = focus_prefix(editor.focus == Focus::Checklist);
 
-    let due_label = editor
-        .due_date
-        .map(|d| d.format("%Y-%m-%d").to_string())
-        .unwrap_or_else(|| "(none)".to_string());
+    let due_label = if editor.focus == Focus::DueDate {
+        editor.date_picker.cursor.format("%Y-%m-%d").to_string()
+    } else {
+        editor
+            .due_date
+            .map(|d| d.format("%Y-%m-%d").to_string())
+            .unwrap_or_else(|| "(none)".to_string())
+    };
 
-    out.push(Line::from(format!("  {title_prefix} Title: {}", editor.title)));
-    out.push(Line::from(format!("  {notes_prefix} Notes: {}", editor.notes)));
+    let title_cursor = if app.cursor_visible && editor.focus == Focus::Title {
+        "|"
+    } else {
+        ""
+    };
+    let notes_cursor = if app.cursor_visible && editor.focus == Focus::Notes {
+        "|"
+    } else {
+        ""
+    };
+
+    out.push(Line::from(format!(
+        "  {title_prefix} Title: {}{title_cursor}",
+        editor.title
+    )));
+    out.push(Line::from(format!(
+        "  {notes_prefix} Notes: {}{notes_cursor}",
+        editor.notes
+    )));
     out.push(Line::from(format!(
         "  {due_prefix} Due: {}  (t=Today, m=Tomorrow)",
         due_label
@@ -76,8 +97,8 @@ fn editor_lines(app: &App, editor: &crate::app::EditorState) -> Vec<Line<'static
     }
 
     if editor.focus == Focus::DueDate {
-        out.push(Line::from(""));
-        out.extend(calendar_lines(editor, app.calendar_theme));
+    out.push(Line::from(""));
+    out.extend(calendar_lines(editor, app.calendar_theme, app.cursor_visible));
     }
 
     out
@@ -90,6 +111,7 @@ fn focus_prefix(active: bool) -> &'static str {
 fn calendar_lines(
     editor: &crate::app::EditorState,
     theme: crate::ui::theme::CalendarTheme,
+    cursor_visible: bool,
 ) -> Vec<Line<'static>> {
     use chrono::{Datelike, NaiveDate};
 
@@ -121,7 +143,7 @@ fn calendar_lines(
     let mut spans = vec![Span::raw("    ")];
     for (label, weekend) in header {
         let style = if weekend { theme.weekend } else { theme.weekday };
-        spans.push(Span::styled(format!("{label} "), style));
+        spans.push(Span::styled(format!(" {label} "), style));
     }
     lines.push(Line::from(spans));
 
@@ -145,7 +167,7 @@ fn calendar_lines(
         weeks.push(week);
     }
 
-    for week in weeks {
+    for week in weeks.iter() {
         let mut spans = vec![Span::raw("    ")];
         for day in week.iter() {
             if let Some(date) = day {
@@ -161,9 +183,19 @@ fn calendar_lines(
                 } else {
                     theme.weekday
                 };
-                spans.push(Span::styled(format!("{:02} ", date.day()), style));
+                if is_cursor {
+                    if cursor_visible {
+                        spans.push(Span::styled("[", theme.bracket));
+                        spans.push(Span::styled(format!("{:02}", date.day()), style));
+                        spans.push(Span::styled("]", theme.bracket));
+                    } else {
+                        spans.push(Span::styled(format!(" {:02} ", date.day()), style));
+                    }
+                } else {
+                    spans.push(Span::styled(format!(" {:02} ", date.day()), style));
+                }
             } else {
-                spans.push(Span::raw("   "));
+                spans.push(Span::raw("    "));
             }
         }
         lines.push(Line::from(spans));

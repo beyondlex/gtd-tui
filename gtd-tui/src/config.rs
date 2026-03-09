@@ -25,6 +25,7 @@ pub struct CalendarThemeConfig {
     pub weekend: Option<String>,
     pub today: Option<String>,
     pub selected: Option<String>,
+    pub bracket: Option<String>,
 }
 
 pub fn db_path() -> Result<PathBuf> {

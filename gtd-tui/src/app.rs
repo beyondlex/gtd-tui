@@ -3,6 +3,7 @@ use chrono::{Datelike, NaiveDate, Utc};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use gtd_core::models::{ChecklistItem, Task, TaskStatus};
 use gtd_core::storage::{SqliteStorage, Storage, TaskFilter};
+use std::time::{Duration, Instant};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -127,6 +128,8 @@ pub struct App {
     pub selected: usize,
     pub editor: Option<EditorState>,
     pub calendar_theme: CalendarTheme,
+    pub cursor_visible: bool,
+    last_blink: Instant,
     storage: SqliteStorage,
 }
 
@@ -140,6 +143,8 @@ impl App {
             selected: 0,
             editor: None,
             calendar_theme,
+            cursor_visible: true,
+            last_blink: Instant::now(),
             storage,
         };
         app.refresh_tasks()?;
@@ -150,6 +155,14 @@ impl App {
         match self.mode {
             Mode::Normal => self.on_key_normal(key),
             Mode::Editing => self.on_key_edit(key),
+        }
+    }
+
+    pub fn on_tick(&mut self) {
+        let now = Instant::now();
+        if now.duration_since(self.last_blink) >= Duration::from_millis(500) {
+            self.cursor_visible = !self.cursor_visible;
+            self.last_blink = now;
         }
     }
 
@@ -191,9 +204,6 @@ impl App {
             }
             KeyCode::Tab => editor.focus = editor.focus.next(),
             KeyCode::BackTab => editor.focus = editor.focus.prev(),
-            KeyCode::Enter => Self::handle_enter(editor)?,
-            KeyCode::Backspace => Self::handle_backspace(editor),
-            KeyCode::Char(ch) => Self::handle_char(editor, ch),
             KeyCode::Left if editor.focus == Focus::DueDate => editor.date_picker.move_days(-1),
             KeyCode::Right if editor.focus == Focus::DueDate => editor.date_picker.move_days(1),
             KeyCode::Up if editor.focus == Focus::DueDate => editor.date_picker.move_days(-7),
@@ -201,11 +211,18 @@ impl App {
             KeyCode::Char('p') if editor.focus == Focus::DueDate => editor.date_picker.move_months(-1),
             KeyCode::Char('n') if editor.focus == Focus::DueDate => editor.date_picker.move_months(1),
             KeyCode::Char('t') if editor.focus == Focus::DueDate => {
-                editor.date_picker.cursor = Utc::now().date_naive()
+                let today = Utc::now().date_naive();
+                editor.date_picker.cursor = today;
+                editor.due_date = Some(today);
             }
             KeyCode::Char('m') if editor.focus == Focus::DueDate => {
-                editor.date_picker.cursor = Utc::now().date_naive() + chrono::Duration::days(1)
+                let tomorrow = Utc::now().date_naive() + chrono::Duration::days(1);
+                editor.date_picker.cursor = tomorrow;
+                editor.due_date = Some(tomorrow);
             }
+            KeyCode::Enter => Self::handle_enter(editor)?,
+            KeyCode::Backspace => Self::handle_backspace(editor),
+            KeyCode::Char(ch) => Self::handle_char(editor, ch),
             _ => {}
         }
         Ok(())
