@@ -28,10 +28,10 @@ pub fn draw(frame: &mut Frame, app: &App) {
 
     let hint = match app.mode {
         Mode::Normal => Paragraph::new(
-            "Keys: 1-5 or i/t/u/a/s switch views, j/k move, n new, e edit, x toggle, r refresh, q quit",
+            "Keys: 1-5 or i/t/u/a/s switch views, j/k move, n new, l edit, x toggle, r refresh, q quit",
         ),
         Mode::Editing => Paragraph::new(
-            "Edit: Tab/Shift+Tab move, Ctrl+S save, Esc cancel, Enter advances/creates checklist item",
+            "Edit: j/k move, l edit checklist item, Ctrl+S save, Esc cancel",
         ),
     }
         .alignment(Alignment::Center)

@@ -194,7 +194,7 @@ impl App {
             KeyCode::Char('j') | KeyCode::Down => self.select_next(),
             KeyCode::Char('k') | KeyCode::Up => self.select_prev(),
             KeyCode::Char('n') => self.start_new_task(),
-            KeyCode::Char('e') => self.start_edit_task()?,
+            KeyCode::Char('l') if self.view == View::Inbox => self.start_edit_task()?,
             KeyCode::Char('x') => self.toggle_selected_task()?,
             KeyCode::Char('r') => self.refresh_tasks()?,
             _ => {}
@@ -216,8 +216,23 @@ impl App {
 
         match key.code {
             KeyCode::Esc => {
-                self.cancel_edit();
+                if editor.focus == Focus::Checklist && editor.edit_active {
+                    editor.edit_active = false;
+                } else {
+                    self.cancel_edit();
+                }
                 return Ok(());
+            }
+            KeyCode::Char('j') if !editor.edit_active && editor.focus == Focus::Checklist => {
+                if !editor.checklist.is_empty() {
+                    editor.checklist_index = (editor.checklist_index + 1)
+                        .min(editor.checklist.len().saturating_sub(1));
+                }
+            }
+            KeyCode::Char('k') if !editor.edit_active && editor.focus == Focus::Checklist => {
+                if editor.checklist_index > 0 {
+                    editor.checklist_index -= 1;
+                }
             }
             KeyCode::Char('j') if !editor.edit_active => {
                 editor.focus = editor.focus.next();
@@ -228,9 +243,8 @@ impl App {
                             title: String::new(),
                             checked: false,
                         });
-                        editor.checklist_index = 0;
                     }
-                    editor.edit_active = true;
+                    editor.checklist_index = 0;
                 }
             }
             KeyCode::Char('k') if !editor.edit_active => {
@@ -242,9 +256,8 @@ impl App {
                             title: String::new(),
                             checked: false,
                         });
-                        editor.checklist_index = 0;
                     }
-                    editor.edit_active = true;
+                    editor.checklist_index = 0;
                 }
             }
             KeyCode::Char('h') if editor.focus == Focus::DueDate && editor.edit_active => {
@@ -271,6 +284,16 @@ impl App {
                 editor.due_date = Some(next);
                 editor.date_picker.cursor = next;
             }
+            KeyCode::Char('l') if editor.focus == Focus::Checklist && !editor.edit_active => {
+                if editor.checklist.is_empty() {
+                    editor.checklist.push(ChecklistDraft {
+                        title: String::new(),
+                        checked: false,
+                    });
+                    editor.checklist_index = 0;
+                }
+                editor.edit_active = true;
+            }
             KeyCode::Down if editor.focus == Focus::DueDate && editor.edit_active => {
                 editor.edit_active = false;
                 editor.focus = Focus::Checklist;
@@ -283,12 +306,12 @@ impl App {
                 editor.checklist_index = 0;
                 editor.edit_active = true;
             }
-            KeyCode::Up if editor.focus == Focus::Checklist => {
+            KeyCode::Up if editor.focus == Focus::Checklist && !editor.edit_active => {
                 if editor.checklist_index > 0 {
                     editor.checklist_index -= 1;
                 }
             }
-            KeyCode::Down if editor.focus == Focus::Checklist => {
+            KeyCode::Down if editor.focus == Focus::Checklist && !editor.edit_active => {
                 if !editor.checklist.is_empty() {
                     editor.checklist_index = (editor.checklist_index + 1)
                         .min(editor.checklist.len().saturating_sub(1));
