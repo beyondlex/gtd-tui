@@ -209,19 +209,6 @@ impl App {
             return self.save_edit();
         }
 
-        let (focus, edit_active) = match self.editor.as_ref() {
-            Some(editor) => (editor.focus, editor.edit_active),
-            None => return Ok(()),
-        };
-
-        if matches!(key.code, KeyCode::Up | KeyCode::Down)
-            && focus != Focus::Checklist
-            && !(focus == Focus::DueDate && edit_active && key.code == KeyCode::Down)
-        {
-            let delta = if key.code == KeyCode::Up { -1 } else { 1 };
-            return self.switch_task(delta);
-        }
-
         let editor = match self.editor.as_mut() {
             Some(editor) => editor,
             None => return Ok(()),
@@ -232,7 +219,7 @@ impl App {
                 self.cancel_edit();
                 return Ok(());
             }
-            KeyCode::Char('j') => {
+            KeyCode::Char('j') if !editor.edit_active => {
                 editor.focus = editor.focus.next();
                 editor.edit_active = false;
                 if editor.focus == Focus::Checklist {
@@ -246,7 +233,7 @@ impl App {
                     editor.edit_active = true;
                 }
             }
-            KeyCode::Char('k') => {
+            KeyCode::Char('k') if !editor.edit_active => {
                 editor.focus = editor.focus.prev();
                 editor.edit_active = false;
                 if editor.focus == Focus::Checklist {
