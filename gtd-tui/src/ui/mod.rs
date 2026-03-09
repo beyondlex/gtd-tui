@@ -6,7 +6,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
 use ratatui::Frame;
 
-use crate::app::{App, View};
+use crate::app::{App, Mode, View};
 
 pub fn draw(frame: &mut Frame, app: &App) {
     let chunks = layout::main_chunks(frame.size());
@@ -25,12 +25,20 @@ pub fn draw(frame: &mut Frame, app: &App) {
     let mut state = list_state(app.view);
     frame.render_stateful_widget(list, chunks.sidebar, &mut state);
 
-    let hint = Paragraph::new("Keys: 1-5 or i/t/u/a/s to switch views, q to quit")
+    let hint = match app.mode {
+        Mode::Normal => Paragraph::new(
+            "Keys: 1-5 or i/t/u/a/s switch views, j/k move, n new, x toggle, r refresh, q quit",
+        ),
+        Mode::Input => Paragraph::new(format!(
+            "New task: {} (Enter to save, Esc to cancel)",
+            app.input
+        )),
+    }
         .alignment(Alignment::Center)
         .block(Block::default().title("Help").borders(Borders::ALL));
     frame.render_widget(hint, chunks.footer);
 
-    views::render(frame, chunks.content, app.view);
+    views::render(frame, chunks.content, app);
 }
 
 fn list_state(view: View) -> ratatui::widgets::ListState {

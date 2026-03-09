@@ -1,17 +1,21 @@
+use std::fs;
 use std::io;
 use std::time::Duration;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use crossterm::event::{self, Event, KeyCode};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
-use crossterm::{execute, terminal};
+use crossterm::execute;
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 
 mod app;
+mod config;
 mod ui;
 
 use app::App;
+use config::db_path;
+use gtd_core::storage::SqliteStorage;
 
 struct TerminalGuard;
 
@@ -38,14 +42,19 @@ fn main() -> Result<()> {
     let backend = CrosstermBackend::new(&mut stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let mut app = App::new();
+    let db_path = db_path()?;
+    if let Some(parent) = db_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let storage = SqliteStorage::new(&db_path).map_err(|e| anyhow!(e))?;
+    let mut app = App::new(storage)?;
 
     loop {
         terminal.draw(|frame| ui::draw(frame, &app))?;
 
         if event::poll(Duration::from_millis(250))? {
             if let Event::Key(key) = event::read()? {
-                app.on_key(key.code);
+                app.on_key(key.code)?;
             }
         }
 

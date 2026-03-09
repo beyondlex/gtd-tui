@@ -7,11 +7,11 @@ mod upcoming;
 use ratatui::layout::Rect;
 use ratatui::Frame;
 
-use crate::app::View;
+use crate::app::{App, View};
 
-pub fn render(frame: &mut Frame, area: Rect, view: View) {
-    match view {
-        View::Inbox => inbox::render(frame, area),
+pub fn render(frame: &mut Frame, area: Rect, app: &App) {
+    match app.view {
+        View::Inbox => inbox::render(frame, area, app),
         View::Today => today::render(frame, area),
         View::Upcoming => upcoming::render(frame, area),
         View::Anytime => anytime::render(frame, area),

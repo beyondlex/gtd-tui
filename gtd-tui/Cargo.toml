@@ -8,6 +8,9 @@ rust-version = "1.85"
 anyhow = "1"
 crossterm = "0.27"
 ratatui = "0.26"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4"] }
+gtd-core = { path = "../gtd-core" }
 
 [lints.rust]
 unsafe_code = "warn"
