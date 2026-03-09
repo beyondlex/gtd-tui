@@ -11,6 +11,8 @@ ratatui = "0.26"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4"] }
 gtd-core = { path = "../gtd-core" }
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
 
 [lints.rust]
 unsafe_code = "warn"

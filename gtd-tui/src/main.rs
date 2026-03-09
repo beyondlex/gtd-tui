@@ -14,8 +14,9 @@ mod config;
 mod ui;
 
 use app::App;
-use config::db_path;
+use config::{db_path, load};
 use gtd_core::storage::SqliteStorage;
+use ui::theme::CalendarTheme;
 
 struct TerminalGuard;
 
@@ -46,8 +47,10 @@ fn main() -> Result<()> {
     if let Some(parent) = db_path.parent() {
         fs::create_dir_all(parent)?;
     }
+    let config = load()?;
+    let calendar_theme = CalendarTheme::from_config(&config.theme.calendar);
     let storage = SqliteStorage::new(&db_path).map_err(|e| anyhow!(e))?;
-    let mut app = App::new(storage)?;
+    let mut app = App::new(storage, calendar_theme)?;
 
     loop {
         terminal.draw(|frame| ui::draw(frame, &app))?;

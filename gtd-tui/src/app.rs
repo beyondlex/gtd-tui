@@ -117,6 +117,8 @@ impl DatePickerState {
     }
 }
 
+use crate::ui::theme::CalendarTheme;
+
 pub struct App {
     pub should_quit: bool,
     pub view: View,
@@ -124,11 +126,12 @@ pub struct App {
     pub tasks: Vec<Task>,
     pub selected: usize,
     pub editor: Option<EditorState>,
+    pub calendar_theme: CalendarTheme,
     storage: SqliteStorage,
 }
 
 impl App {
-    pub fn new(storage: SqliteStorage) -> Result<Self> {
+    pub fn new(storage: SqliteStorage, calendar_theme: CalendarTheme) -> Result<Self> {
         let mut app = Self {
             should_quit: false,
             view: View::Inbox,
@@ -136,6 +139,7 @@ impl App {
             tasks: Vec::new(),
             selected: 0,
             editor: None,
+            calendar_theme,
             storage,
         };
         app.refresh_tasks()?;

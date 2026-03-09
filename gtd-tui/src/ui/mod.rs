@@ -1,4 +1,5 @@
 mod layout;
+pub mod theme;
 mod views;
 
 use ratatui::layout::Alignment;
