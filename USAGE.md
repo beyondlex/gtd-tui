@@ -32,6 +32,7 @@ GTD_TUI_DB_PATH=/path/to/gtd.db cargo run -p gtd-tui
 
 - `j` / `k`：切换字段焦点
 - `Ctrl+E`：切换当前字段编辑模式（Title/Notes/Due/Checklist）
+- `↑/↓`：切换相邻任务并进入编辑状态（Checklist 内仍使用 ↑/↓ 选择条目）
 - `Ctrl+S`：保存
 - `Esc`：取消
 
@@ -43,8 +44,8 @@ GTD_TUI_DB_PATH=/path/to/gtd.db cargo run -p gtd-tui
 
 - Normal 模式：`h` / `l` 前后一天（无日期时从今天开始）
 - Edit 模式：显示日历控件
-- `←/→`：前后一天
-- `↑/↓`：前后 7 天
+- `h` / `l`：前后一天
+- `k` / `j`：前后 7 天
 - `p` / `n`：上月 / 下月
 - `t`：今天
 - `m`：明天

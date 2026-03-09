@@ -209,6 +209,19 @@ impl App {
             return self.save_edit();
         }
 
+        let (focus, edit_active) = match self.editor.as_ref() {
+            Some(editor) => (editor.focus, editor.edit_active),
+            None => return Ok(()),
+        };
+
+        if matches!(key.code, KeyCode::Up | KeyCode::Down)
+            && focus != Focus::Checklist
+            && !(focus == Focus::DueDate && edit_active && key.code == KeyCode::Down)
+        {
+            let delta = if key.code == KeyCode::Up { -1 } else { 1 };
+            return self.switch_task(delta);
+        }
+
         let editor = match self.editor.as_mut() {
             Some(editor) => editor,
             None => return Ok(()),
@@ -222,21 +235,41 @@ impl App {
             KeyCode::Char('j') => {
                 editor.focus = editor.focus.next();
                 editor.edit_active = false;
+                if editor.focus == Focus::Checklist {
+                    if editor.checklist.is_empty() {
+                        editor.checklist.push(ChecklistDraft {
+                            title: String::new(),
+                            checked: false,
+                        });
+                        editor.checklist_index = 0;
+                    }
+                    editor.edit_active = true;
+                }
             }
             KeyCode::Char('k') => {
                 editor.focus = editor.focus.prev();
                 editor.edit_active = false;
+                if editor.focus == Focus::Checklist {
+                    if editor.checklist.is_empty() {
+                        editor.checklist.push(ChecklistDraft {
+                            title: String::new(),
+                            checked: false,
+                        });
+                        editor.checklist_index = 0;
+                    }
+                    editor.edit_active = true;
+                }
             }
-            KeyCode::Left if editor.focus == Focus::DueDate && editor.edit_active => {
+            KeyCode::Char('h') if editor.focus == Focus::DueDate && editor.edit_active => {
                 editor.date_picker.move_days(-1)
             }
-            KeyCode::Right if editor.focus == Focus::DueDate && editor.edit_active => {
+            KeyCode::Char('l') if editor.focus == Focus::DueDate && editor.edit_active => {
                 editor.date_picker.move_days(1)
             }
-            KeyCode::Up if editor.focus == Focus::DueDate && editor.edit_active => {
+            KeyCode::Char('k') if editor.focus == Focus::DueDate && editor.edit_active => {
                 editor.date_picker.move_days(-7)
             }
-            KeyCode::Down if editor.focus == Focus::DueDate && editor.edit_active => {
+            KeyCode::Char('j') if editor.focus == Focus::DueDate && editor.edit_active => {
                 editor.date_picker.move_days(7)
             }
             KeyCode::Char('h') if editor.focus == Focus::DueDate && !editor.edit_active => {
@@ -250,6 +283,18 @@ impl App {
                 let next = base + chrono::Duration::days(1);
                 editor.due_date = Some(next);
                 editor.date_picker.cursor = next;
+            }
+            KeyCode::Down if editor.focus == Focus::DueDate && editor.edit_active => {
+                editor.edit_active = false;
+                editor.focus = Focus::Checklist;
+                if editor.checklist.is_empty() {
+                    editor.checklist.push(ChecklistDraft {
+                        title: String::new(),
+                        checked: false,
+                    });
+                }
+                editor.checklist_index = 0;
+                editor.edit_active = true;
             }
             KeyCode::Up if editor.focus == Focus::Checklist => {
                 if editor.checklist_index > 0 {
@@ -586,6 +631,22 @@ impl App {
             return;
         }
         self.selected = self.selected.saturating_sub(1);
+    }
+
+    fn switch_task(&mut self, delta: i32) -> Result<()> {
+        if self.tasks.is_empty() {
+            return Ok(());
+        }
+        let current = self.selected as i32;
+        let max_index = self.tasks.len().saturating_sub(1) as i32;
+        let target = (current + delta).clamp(0, max_index) as usize;
+        if target == self.selected {
+            return Ok(());
+        }
+        self.save_edit()?;
+        self.selected = target.min(self.tasks.len().saturating_sub(1));
+        self.start_edit_task()?;
+        Ok(())
     }
 }
 
