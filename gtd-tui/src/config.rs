@@ -11,12 +11,16 @@ const DB_ENV_VAR: &str = "GTD_TUI_DB_PATH";
 pub struct Config {
     #[serde(default)]
     pub theme: ThemeConfig,
+    #[serde(default)]
+    pub keys: KeysConfig,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct ThemeConfig {
     #[serde(default)]
     pub calendar: CalendarThemeConfig,
+    #[serde(default)]
+    pub editor: EditorThemeConfig,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -26,6 +30,16 @@ pub struct CalendarThemeConfig {
     pub today: Option<String>,
     pub selected: Option<String>,
     pub bracket: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct EditorThemeConfig {
+    pub checklist_edit: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct KeysConfig {
+    pub checklist_edit_toggle: Option<String>,
 }
 
 pub fn db_path() -> Result<PathBuf> {

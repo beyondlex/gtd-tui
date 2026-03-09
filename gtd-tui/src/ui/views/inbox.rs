@@ -81,24 +81,45 @@ fn editor_lines(app: &App, editor: &crate::app::EditorState) -> Vec<Line<'static
         "  {due_prefix} Due: {}  (t=Today, m=Tomorrow)",
         due_label
     )));
-    out.push(Line::from(format!("  {checklist_prefix} Checklist:")));
+    if editor.focus == Focus::DueDate {
+        out.push(Line::from(""));
+        out.extend(calendar_lines(editor, app.calendar_theme, app.cursor_visible));
+    }
+
+    let checklist_header = if editor.focus == Focus::Checklist && editor.checklist_edit {
+        Line::from(vec![
+            Span::raw(format!("  {checklist_prefix} Checklist: ")),
+            Span::styled("(editing)", app.editor_theme.checklist_edit),
+        ])
+    } else {
+        Line::from(format!("  {checklist_prefix} Checklist:"))
+    };
+    out.push(checklist_header);
 
     if editor.checklist.is_empty() {
         out.push(Line::from("    - [ ]"));
     } else {
         for (idx, item) in editor.checklist.iter().enumerate() {
-            let marker = if editor.focus == Focus::Checklist && idx == editor.checklist_index {
-                ">"
+            let selected = editor.focus == Focus::Checklist && idx == editor.checklist_index;
+            let marker = if selected { ">" } else { " " };
+            let cursor = if selected && app.cursor_visible && editor.checklist_edit {
+                "|"
             } else {
-                " "
+                ""
             };
-            out.push(Line::from(format!("    {marker} [ ] {item}")));
+            let checkbox = if item.checked { "[x]" } else { "[ ]" };
+            if selected && editor.checklist_edit {
+                out.push(Line::from(Span::styled(
+                    format!("    {marker} {checkbox} {}{cursor}", item.title),
+                    app.editor_theme.checklist_edit,
+                )));
+            } else {
+                out.push(Line::from(format!(
+                    "    {marker} {checkbox} {}{cursor}",
+                    item.title
+                )));
+            }
         }
-    }
-
-    if editor.focus == Focus::DueDate {
-    out.push(Line::from(""));
-    out.extend(calendar_lines(editor, app.calendar_theme, app.cursor_visible));
     }
 
     out

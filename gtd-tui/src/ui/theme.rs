@@ -1,6 +1,6 @@
 use ratatui::style::{Color, Modifier, Style};
 
-use crate::config::CalendarThemeConfig;
+use crate::config::{CalendarThemeConfig, EditorThemeConfig};
 
 #[derive(Debug, Clone, Copy)]
 pub struct CalendarTheme {
@@ -9,6 +9,11 @@ pub struct CalendarTheme {
     pub today: Style,
     pub selected: Style,
     pub bracket: Style,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct EditorTheme {
+    pub checklist_edit: Style,
 }
 
 impl CalendarTheme {
@@ -48,6 +53,27 @@ impl Default for CalendarTheme {
                 .fg(Color::Blue)
                 .add_modifier(Modifier::BOLD),
             bracket: Style::default().fg(Color::Magenta),
+        }
+    }
+}
+
+impl EditorTheme {
+    pub fn from_config(config: &EditorThemeConfig) -> Self {
+        let checklist_edit = parse_style(config.checklist_edit.as_deref()).unwrap_or_else(|| {
+            Style::default()
+                .fg(Color::LightYellow)
+                .add_modifier(Modifier::BOLD)
+        });
+        Self { checklist_edit }
+    }
+}
+
+impl Default for EditorTheme {
+    fn default() -> Self {
+        Self {
+            checklist_edit: Style::default()
+                .fg(Color::LightYellow)
+                .add_modifier(Modifier::BOLD),
         }
     }
 }

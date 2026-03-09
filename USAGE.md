@@ -52,6 +52,9 @@ GTD_TUI_DB_PATH=/path/to/gtd.db cargo run -p gtd-tui
 
 - `Enter`：新增条目
 - `Backspace`：若当前条目为空则删除
+- `↑/↓`：切换选中条目
+- `x`：切换选中条目的完成状态（需焦点在 Checklist）
+- `Ctrl+E`：切换条目编辑模式（可配置）
 
 ## 主题配置
 
@@ -66,6 +69,12 @@ weekend = "red bold"
 today = "green bold"
 selected = "blue bold"
 bracket = "magenta"
+
+[theme.editor]
+checklist_edit = "lightyellow bold"
+
+[keys]
+checklist_edit_toggle = "ctrl+e"
 ```
 
 可用颜色：black, red, green, yellow, blue, magenta, cyan, gray, darkgray, lightred, lightgreen, lightyellow, lightblue, lightmagenta, lightcyan, white, reset。

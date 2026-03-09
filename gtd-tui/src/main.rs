@@ -16,7 +16,8 @@ mod ui;
 use app::App;
 use config::{db_path, load};
 use gtd_core::storage::SqliteStorage;
-use ui::theme::CalendarTheme;
+use ui::theme::{CalendarTheme, EditorTheme};
+use app::Keymap;
 
 struct TerminalGuard;
 
@@ -49,8 +50,10 @@ fn main() -> Result<()> {
     }
     let config = load()?;
     let calendar_theme = CalendarTheme::from_config(&config.theme.calendar);
+    let editor_theme = EditorTheme::from_config(&config.theme.editor);
+    let keymap = Keymap::from_config(&config.keys);
     let storage = SqliteStorage::new(&db_path).map_err(|e| anyhow!(e))?;
-    let mut app = App::new(storage, calendar_theme)?;
+    let mut app = App::new(storage, calendar_theme, editor_theme, keymap)?;
 
     loop {
         terminal.draw(|frame| ui::draw(frame, &app))?;

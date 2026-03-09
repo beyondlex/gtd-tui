@@ -78,10 +78,17 @@ pub struct EditorState {
     pub title: String,
     pub notes: String,
     pub due_date: Option<NaiveDate>,
-    pub checklist: Vec<String>,
+    pub checklist: Vec<ChecklistDraft>,
     pub checklist_index: usize,
+    pub checklist_edit: bool,
     pub focus: Focus,
     pub date_picker: DatePickerState,
+}
+
+#[derive(Debug, Clone)]
+pub struct ChecklistDraft {
+    pub title: String,
+    pub checked: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -118,7 +125,8 @@ impl DatePickerState {
     }
 }
 
-use crate::ui::theme::CalendarTheme;
+use crate::config::KeysConfig;
+use crate::ui::theme::{CalendarTheme, EditorTheme};
 
 pub struct App {
     pub should_quit: bool,
@@ -128,13 +136,20 @@ pub struct App {
     pub selected: usize,
     pub editor: Option<EditorState>,
     pub calendar_theme: CalendarTheme,
+    pub editor_theme: EditorTheme,
+    pub keymap: Keymap,
     pub cursor_visible: bool,
     last_blink: Instant,
     storage: SqliteStorage,
 }
 
 impl App {
-    pub fn new(storage: SqliteStorage, calendar_theme: CalendarTheme) -> Result<Self> {
+    pub fn new(
+        storage: SqliteStorage,
+        calendar_theme: CalendarTheme,
+        editor_theme: EditorTheme,
+        keymap: Keymap,
+    ) -> Result<Self> {
         let mut app = Self {
             should_quit: false,
             view: View::Inbox,
@@ -143,6 +158,8 @@ impl App {
             selected: 0,
             editor: None,
             calendar_theme,
+            editor_theme,
+            keymap,
             cursor_visible: true,
             last_blink: Instant::now(),
             storage,
@@ -208,6 +225,28 @@ impl App {
             KeyCode::Right if editor.focus == Focus::DueDate => editor.date_picker.move_days(1),
             KeyCode::Up if editor.focus == Focus::DueDate => editor.date_picker.move_days(-7),
             KeyCode::Down if editor.focus == Focus::DueDate => editor.date_picker.move_days(7),
+            KeyCode::Up if editor.focus == Focus::Checklist => {
+                if editor.checklist_index > 0 {
+                    editor.checklist_index -= 1;
+                }
+            }
+            KeyCode::Down if editor.focus == Focus::Checklist => {
+                if !editor.checklist.is_empty() {
+                    editor.checklist_index = (editor.checklist_index + 1)
+                        .min(editor.checklist.len().saturating_sub(1));
+                }
+            }
+            KeyCode::Char('x') if editor.focus == Focus::Checklist => {
+                if let Some(item) = editor.checklist.get_mut(editor.checklist_index) {
+                    item.checked = !item.checked;
+                }
+            }
+            _ if editor.focus == Focus::Checklist
+                && self.keymap.checklist_edit_toggle.matches(key) =>
+            {
+                editor.checklist_edit = !editor.checklist_edit;
+                return Ok(());
+            }
             KeyCode::Char('p') if editor.focus == Focus::DueDate => editor.date_picker.move_months(-1),
             KeyCode::Char('n') if editor.focus == Focus::DueDate => editor.date_picker.move_months(1),
             KeyCode::Char('t') if editor.focus == Focus::DueDate => {
@@ -237,10 +276,15 @@ impl App {
                 editor.focus = Focus::Checklist;
             }
             Focus::Checklist => {
-                editor
-                    .checklist
-                    .insert(editor.checklist_index + 1, String::new());
+                editor.checklist.insert(
+                    editor.checklist_index + 1,
+                    ChecklistDraft {
+                        title: String::new(),
+                        checked: false,
+                    },
+                );
                 editor.checklist_index += 1;
+                editor.checklist_edit = true;
             }
         }
         Ok(())
@@ -261,14 +305,17 @@ impl App {
                 if editor.checklist.is_empty() {
                     return;
                 }
+                if !editor.checklist_edit {
+                    return;
+                }
                 let current = &mut editor.checklist[editor.checklist_index];
-                if current.is_empty() {
+                if current.title.is_empty() {
                     editor.checklist.remove(editor.checklist_index);
                     if editor.checklist_index > 0 {
                         editor.checklist_index -= 1;
                     }
                 } else {
-                    current.pop();
+                    current.title.pop();
                 }
             }
         }
@@ -280,11 +327,17 @@ impl App {
             Focus::Notes => editor.notes.push(ch),
             Focus::DueDate => {}
             Focus::Checklist => {
+                if !editor.checklist_edit {
+                    return;
+                }
                 if editor.checklist.is_empty() {
-                    editor.checklist.push(String::new());
+                    editor.checklist.push(ChecklistDraft {
+                        title: String::new(),
+                        checked: false,
+                    });
                     editor.checklist_index = 0;
                 }
-                editor.checklist[editor.checklist_index].push(ch);
+                editor.checklist[editor.checklist_index].title.push(ch);
             }
         }
     }
@@ -298,8 +351,12 @@ impl App {
             title: String::new(),
             notes: String::new(),
             due_date: None,
-            checklist: vec![String::new()],
+            checklist: vec![ChecklistDraft {
+                title: String::new(),
+                checked: false,
+            }],
             checklist_index: 0,
+            checklist_edit: false,
             focus: Focus::Title,
             date_picker: DatePickerState::new(today),
         });
@@ -316,9 +373,18 @@ impl App {
             .get_checklist(task.id)
             .map_err(|e| anyhow!(e))?;
         let checklist = if checklist_items.is_empty() {
-            vec![String::new()]
+            vec![ChecklistDraft {
+                title: String::new(),
+                checked: false,
+            }]
         } else {
-            checklist_items.into_iter().map(|item| item.title).collect()
+            checklist_items
+                .into_iter()
+                .map(|item| ChecklistDraft {
+                    title: item.title,
+                    checked: item.is_checked,
+                })
+                .collect()
         };
         let today = Utc::now().date_naive();
         let seed_date = task.due_date.unwrap_or(today);
@@ -330,6 +396,7 @@ impl App {
             due_date: task.due_date,
             checklist,
             checklist_index: 0,
+            checklist_edit: false,
             focus: Focus::Title,
             date_picker: DatePickerState::new(seed_date),
         });
@@ -398,7 +465,7 @@ impl App {
         Ok(())
     }
 
-    fn replace_checklist(&self, task_id: Uuid, checklist: Vec<String>) -> Result<()> {
+    fn replace_checklist(&self, task_id: Uuid, checklist: Vec<ChecklistDraft>) -> Result<()> {
         let existing = self
             .storage
             .get_checklist(task_id)
@@ -408,8 +475,8 @@ impl App {
                 .delete_checklist_item(item.id)
                 .map_err(|e| anyhow!(e))?;
         }
-        for (index, title) in checklist.into_iter().enumerate() {
-            let title = title.trim();
+        for (index, item) in checklist.into_iter().enumerate() {
+            let title = item.title.trim();
             if title.is_empty() {
                 continue;
             }
@@ -417,7 +484,7 @@ impl App {
                 id: Uuid::new_v4(),
                 task_id,
                 title: title.to_string(),
-                is_checked: false,
+                is_checked: item.checked,
                 sort_order: index as i32,
             };
             self.storage
@@ -480,4 +547,52 @@ pub(crate) fn days_in_month(year: i32, month: u32) -> u32 {
         .unwrap_or_else(|| NaiveDate::from_ymd_opt(year, month, 28).unwrap());
     let last = first_next - chrono::Duration::days(1);
     last.day()
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct KeyBinding {
+    pub ctrl: bool,
+    pub key: char,
+}
+
+impl KeyBinding {
+    pub fn matches(&self, event: KeyEvent) -> bool {
+        event.code == KeyCode::Char(self.key)
+            && event.modifiers.contains(KeyModifiers::CONTROL) == self.ctrl
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Keymap {
+    pub checklist_edit_toggle: KeyBinding,
+}
+
+impl Keymap {
+    pub fn from_config(config: &KeysConfig) -> Self {
+        let default = KeyBinding { ctrl: true, key: 'e' };
+        let checklist_edit_toggle = config
+            .checklist_edit_toggle
+            .as_deref()
+            .and_then(parse_key_binding)
+            .unwrap_or(default);
+        Self {
+            checklist_edit_toggle,
+        }
+    }
+}
+
+fn parse_key_binding(value: &str) -> Option<KeyBinding> {
+    let mut ctrl = false;
+    let mut key: Option<char> = None;
+    for part in value.split('+') {
+        let token = part.trim().to_lowercase();
+        if token == "ctrl" || token == "control" {
+            ctrl = true;
+            continue;
+        }
+        if token.chars().count() == 1 {
+            key = token.chars().next();
+        }
+    }
+    key.map(|key| KeyBinding { ctrl, key })
 }
