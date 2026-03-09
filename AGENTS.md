@@ -21,6 +21,8 @@ There is no build or test system wired up yet. Once Rust crates are added, stand
 
 If you introduce new tooling (e.g., `just`, `make`), document the exact commands here.
 
+Usage notes for the TUI are documented in `USAGE.md`.
+
 ## Coding Style & Naming Conventions
 
 Rust style should follow `rustfmt` defaults and Clippy recommendations. Use clear, domain‑driven names that mirror `SPEC.md` entities (e.g., `Task`, `Project`, `Area`, `HotkeyConfig`). Prefer `snake_case` for functions/modules and `PascalCase` for types. Add a `rustfmt.toml` only if deviations are needed.

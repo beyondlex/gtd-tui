@@ -54,7 +54,7 @@ fn main() -> Result<()> {
 
         if event::poll(Duration::from_millis(250))? {
             if let Event::Key(key) = event::read()? {
-                app.on_key(key.code)?;
+                app.on_key(key)?;
             }
         }
 

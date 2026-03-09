@@ -27,12 +27,11 @@ pub fn draw(frame: &mut Frame, app: &App) {
 
     let hint = match app.mode {
         Mode::Normal => Paragraph::new(
-            "Keys: 1-5 or i/t/u/a/s switch views, j/k move, n new, x toggle, r refresh, q quit",
+            "Keys: 1-5 or i/t/u/a/s switch views, j/k move, n new, e edit, x toggle, r refresh, q quit",
         ),
-        Mode::Input => Paragraph::new(format!(
-            "New task: {} (Enter to save, Esc to cancel)",
-            app.input
-        )),
+        Mode::Editing => Paragraph::new(
+            "Edit: Tab/Shift+Tab move, Ctrl+S save, Esc cancel, Enter advances/creates checklist item",
+        ),
     }
         .alignment(Alignment::Center)
         .block(Block::default().title("Help").borders(Borders::ALL));
