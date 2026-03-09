@@ -30,7 +30,8 @@ GTD_TUI_DB_PATH=/path/to/gtd.db cargo run -p gtd-tui
 
 编辑器位于任务列表中，包含 Title / Notes / Due / Checklist。
 
-- `Tab` / `Shift+Tab`：切换字段焦点
+- `j` / `k`：切换字段焦点
+- `Ctrl+E`：切换当前字段编辑模式（Title/Notes/Due/Checklist）
 - `Ctrl+S`：保存
 - `Esc`：取消
 
@@ -40,6 +41,8 @@ GTD_TUI_DB_PATH=/path/to/gtd.db cargo run -p gtd-tui
 
 ### Due（日期）
 
+- Normal 模式：`h` / `l` 前后一天（无日期时从今天开始）
+- Edit 模式：显示日历控件
 - `←/→`：前后一天
 - `↑/↓`：前后 7 天
 - `p` / `n`：上月 / 下月

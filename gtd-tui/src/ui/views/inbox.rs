@@ -49,7 +49,7 @@ fn editor_lines(app: &App, editor: &crate::app::EditorState) -> Vec<Line<'static
     let due_prefix = focus_prefix(editor.focus == Focus::DueDate);
     let checklist_prefix = focus_prefix(editor.focus == Focus::Checklist);
 
-    let due_label = if editor.focus == Focus::DueDate {
+    let due_label = if editor.focus == Focus::DueDate && editor.edit_active {
         editor.date_picker.cursor.format("%Y-%m-%d").to_string()
     } else {
         editor
@@ -58,35 +58,51 @@ fn editor_lines(app: &App, editor: &crate::app::EditorState) -> Vec<Line<'static
             .unwrap_or_else(|| "(none)".to_string())
     };
 
-    let title_cursor = if app.cursor_visible && editor.focus == Focus::Title {
+    let title_cursor = if app.cursor_visible && editor.focus == Focus::Title && editor.edit_active {
         "|"
     } else {
         ""
     };
-    let notes_cursor = if app.cursor_visible && editor.focus == Focus::Notes {
+    let notes_cursor = if app.cursor_visible && editor.focus == Focus::Notes && editor.edit_active {
         "|"
     } else {
         ""
     };
 
-    out.push(Line::from(format!(
-        "  {title_prefix} Title: {}{title_cursor}",
-        editor.title
-    )));
-    out.push(Line::from(format!(
-        "  {notes_prefix} Notes: {}{notes_cursor}",
-        editor.notes
-    )));
+    let title_line = if editor.focus == Focus::Title && editor.edit_active {
+        Line::from(vec![
+            Span::raw(format!("  {title_prefix} Title: ")),
+            Span::styled(format!("{}{}", editor.title, title_cursor), app.editor_theme.checklist_edit),
+        ])
+    } else {
+        Line::from(format!(
+            "  {title_prefix} Title: {}{title_cursor}",
+            editor.title
+        ))
+    };
+    let notes_line = if editor.focus == Focus::Notes && editor.edit_active {
+        Line::from(vec![
+            Span::raw(format!("  {notes_prefix} Notes: ")),
+            Span::styled(format!("{}{}", editor.notes, notes_cursor), app.editor_theme.checklist_edit),
+        ])
+    } else {
+        Line::from(format!(
+            "  {notes_prefix} Notes: {}{notes_cursor}",
+            editor.notes
+        ))
+    };
+    out.push(title_line);
+    out.push(notes_line);
     out.push(Line::from(format!(
         "  {due_prefix} Due: {}  (t=Today, m=Tomorrow)",
         due_label
     )));
-    if editor.focus == Focus::DueDate {
+    if editor.focus == Focus::DueDate && editor.edit_active {
         out.push(Line::from(""));
         out.extend(calendar_lines(editor, app.calendar_theme, app.cursor_visible));
     }
 
-    let checklist_header = if editor.focus == Focus::Checklist && editor.checklist_edit {
+    let checklist_header = if editor.focus == Focus::Checklist && editor.edit_active {
         Line::from(vec![
             Span::raw(format!("  {checklist_prefix} Checklist: ")),
             Span::styled("(editing)", app.editor_theme.checklist_edit),
@@ -102,13 +118,13 @@ fn editor_lines(app: &App, editor: &crate::app::EditorState) -> Vec<Line<'static
         for (idx, item) in editor.checklist.iter().enumerate() {
             let selected = editor.focus == Focus::Checklist && idx == editor.checklist_index;
             let marker = if selected { ">" } else { " " };
-            let cursor = if selected && app.cursor_visible && editor.checklist_edit {
+            let cursor = if selected && app.cursor_visible && editor.edit_active {
                 "|"
             } else {
                 ""
             };
             let checkbox = if item.checked { "[x]" } else { "[ ]" };
-            if selected && editor.checklist_edit {
+            if selected && editor.edit_active {
                 out.push(Line::from(Span::styled(
                     format!("    {marker} {checkbox} {}{cursor}", item.title),
                     app.editor_theme.checklist_edit,

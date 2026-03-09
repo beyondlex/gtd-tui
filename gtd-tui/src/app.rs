@@ -80,7 +80,7 @@ pub struct EditorState {
     pub due_date: Option<NaiveDate>,
     pub checklist: Vec<ChecklistDraft>,
     pub checklist_index: usize,
-    pub checklist_edit: bool,
+    pub edit_active: bool,
     pub focus: Focus,
     pub date_picker: DatePickerState,
 }
@@ -219,12 +219,38 @@ impl App {
                 self.cancel_edit();
                 return Ok(());
             }
-            KeyCode::Tab => editor.focus = editor.focus.next(),
-            KeyCode::BackTab => editor.focus = editor.focus.prev(),
-            KeyCode::Left if editor.focus == Focus::DueDate => editor.date_picker.move_days(-1),
-            KeyCode::Right if editor.focus == Focus::DueDate => editor.date_picker.move_days(1),
-            KeyCode::Up if editor.focus == Focus::DueDate => editor.date_picker.move_days(-7),
-            KeyCode::Down if editor.focus == Focus::DueDate => editor.date_picker.move_days(7),
+            KeyCode::Char('j') => {
+                editor.focus = editor.focus.next();
+                editor.edit_active = false;
+            }
+            KeyCode::Char('k') => {
+                editor.focus = editor.focus.prev();
+                editor.edit_active = false;
+            }
+            KeyCode::Left if editor.focus == Focus::DueDate && editor.edit_active => {
+                editor.date_picker.move_days(-1)
+            }
+            KeyCode::Right if editor.focus == Focus::DueDate && editor.edit_active => {
+                editor.date_picker.move_days(1)
+            }
+            KeyCode::Up if editor.focus == Focus::DueDate && editor.edit_active => {
+                editor.date_picker.move_days(-7)
+            }
+            KeyCode::Down if editor.focus == Focus::DueDate && editor.edit_active => {
+                editor.date_picker.move_days(7)
+            }
+            KeyCode::Char('h') if editor.focus == Focus::DueDate && !editor.edit_active => {
+                let base = editor.due_date.unwrap_or_else(|| Utc::now().date_naive());
+                let next = base - chrono::Duration::days(1);
+                editor.due_date = Some(next);
+                editor.date_picker.cursor = next;
+            }
+            KeyCode::Char('l') if editor.focus == Focus::DueDate && !editor.edit_active => {
+                let base = editor.due_date.unwrap_or_else(|| Utc::now().date_naive());
+                let next = base + chrono::Duration::days(1);
+                editor.due_date = Some(next);
+                editor.date_picker.cursor = next;
+            }
             KeyCode::Up if editor.focus == Focus::Checklist => {
                 if editor.checklist_index > 0 {
                     editor.checklist_index -= 1;
@@ -236,25 +262,36 @@ impl App {
                         .min(editor.checklist.len().saturating_sub(1));
                 }
             }
-            KeyCode::Char('x') if editor.focus == Focus::Checklist => {
+            KeyCode::Char('x') if editor.focus == Focus::Checklist && !editor.edit_active => {
                 if let Some(item) = editor.checklist.get_mut(editor.checklist_index) {
                     item.checked = !item.checked;
                 }
             }
-            _ if editor.focus == Focus::Checklist
-                && self.keymap.checklist_edit_toggle.matches(key) =>
-            {
-                editor.checklist_edit = !editor.checklist_edit;
+            _ if self.keymap.checklist_edit_toggle.matches(key) => {
+                editor.edit_active = !editor.edit_active;
+                if editor.focus == Focus::DueDate {
+                    if editor.edit_active {
+                        if let Some(due) = editor.due_date {
+                            editor.date_picker.cursor = due;
+                        }
+                    } else {
+                        editor.due_date = Some(editor.date_picker.cursor);
+                    }
+                }
                 return Ok(());
             }
-            KeyCode::Char('p') if editor.focus == Focus::DueDate => editor.date_picker.move_months(-1),
-            KeyCode::Char('n') if editor.focus == Focus::DueDate => editor.date_picker.move_months(1),
-            KeyCode::Char('t') if editor.focus == Focus::DueDate => {
+            KeyCode::Char('p') if editor.focus == Focus::DueDate && editor.edit_active => {
+                editor.date_picker.move_months(-1)
+            }
+            KeyCode::Char('n') if editor.focus == Focus::DueDate && editor.edit_active => {
+                editor.date_picker.move_months(1)
+            }
+            KeyCode::Char('t') if editor.focus == Focus::DueDate && editor.edit_active => {
                 let today = Utc::now().date_naive();
                 editor.date_picker.cursor = today;
                 editor.due_date = Some(today);
             }
-            KeyCode::Char('m') if editor.focus == Focus::DueDate => {
+            KeyCode::Char('m') if editor.focus == Focus::DueDate && editor.edit_active => {
                 let tomorrow = Utc::now().date_naive() + chrono::Duration::days(1);
                 editor.date_picker.cursor = tomorrow;
                 editor.due_date = Some(tomorrow);
@@ -284,7 +321,7 @@ impl App {
                     },
                 );
                 editor.checklist_index += 1;
-                editor.checklist_edit = true;
+                editor.edit_active = true;
             }
         }
         Ok(())
@@ -293,10 +330,14 @@ impl App {
     fn handle_backspace(editor: &mut EditorState) {
         match editor.focus {
             Focus::Title => {
-                editor.title.pop();
+                if editor.edit_active {
+                    editor.title.pop();
+                }
             }
             Focus::Notes => {
-                editor.notes.pop();
+                if editor.edit_active {
+                    editor.notes.pop();
+                }
             }
             Focus::DueDate => {
                 editor.due_date = None;
@@ -305,7 +346,7 @@ impl App {
                 if editor.checklist.is_empty() {
                     return;
                 }
-                if !editor.checklist_edit {
+                if !editor.edit_active {
                     return;
                 }
                 let current = &mut editor.checklist[editor.checklist_index];
@@ -323,11 +364,19 @@ impl App {
 
     fn handle_char(editor: &mut EditorState, ch: char) {
         match editor.focus {
-            Focus::Title => editor.title.push(ch),
-            Focus::Notes => editor.notes.push(ch),
+            Focus::Title => {
+                if editor.edit_active {
+                    editor.title.push(ch);
+                }
+            }
+            Focus::Notes => {
+                if editor.edit_active {
+                    editor.notes.push(ch);
+                }
+            }
             Focus::DueDate => {}
             Focus::Checklist => {
-                if !editor.checklist_edit {
+                if !editor.edit_active {
                     return;
                 }
                 if editor.checklist.is_empty() {
@@ -356,7 +405,7 @@ impl App {
                 checked: false,
             }],
             checklist_index: 0,
-            checklist_edit: false,
+            edit_active: false,
             focus: Focus::Title,
             date_picker: DatePickerState::new(today),
         });
@@ -396,7 +445,7 @@ impl App {
             due_date: task.due_date,
             checklist,
             checklist_index: 0,
-            checklist_edit: false,
+            edit_active: false,
             focus: Focus::Title,
             date_picker: DatePickerState::new(seed_date),
         });
