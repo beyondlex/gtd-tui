@@ -1,3 +1,5 @@
+mod sqlite;
+
 use uuid::Uuid;
 
 use crate::models::{
@@ -43,3 +45,5 @@ pub trait Storage: Send + Sync {
     fn get_hotkeys(&self) -> StorageResult<Vec<HotkeyConfig>>;
     fn save_hotkey(&self, config: &HotkeyConfig) -> StorageResult<()>;
 }
+
+pub use sqlite::SqliteStorage;
