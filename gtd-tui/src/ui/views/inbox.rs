@@ -1,7 +1,8 @@
-use ratatui::Frame;
 use ratatui::layout::Rect;
+use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
+use ratatui::Frame;
 
 use crate::app::{App, Focus, Layer, Mode};
 
@@ -23,7 +24,15 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
 
         if let Some(editor) = &app.editor {
             if editor.insert_after == index {
+                // Add separator for new task
+                if editor.task_id.is_none() {
+                    lines.push(Line::from("  ┌──────────────────────────────────────┐"));
+                }
                 lines.extend(editor_lines(app, editor));
+                // Add bottom separator for new task
+                if editor.task_id.is_none() {
+                    lines.push(Line::from("  └──────────────────────────────────────┘"));
+                }
             }
         }
     }
@@ -83,40 +92,63 @@ fn editor_lines(app: &App, editor: &crate::app::EditorState) -> Vec<Line<'static
         ""
     };
 
+    // Check if this is a new task and title is empty
+    let is_new_task = editor.task_id.is_none();
+    let display_title = if is_new_task && editor.title.trim().is_empty() {
+        "new task".to_string()
+    } else {
+        editor.title.clone()
+    };
+
+    // Use different style for new task placeholder
+    let title_style = if is_new_task && editor.title.trim().is_empty() {
+        // Light gray color for placeholder
+        Style::default().fg(Color::DarkGray)
+    } else if editor.focus == Focus::Title && editor.edit_active {
+        app.editor_theme.checklist_edit
+    } else {
+        Style::default()
+    };
+
     let title_line = if editor.focus == Focus::Title && editor.edit_active {
         Line::from(vec![
             Span::raw(format!("  {title_prefix} Title: ")),
-            Span::styled(
-                format!("{}{}", editor.title, title_cursor),
-                app.editor_theme.checklist_edit,
-            ),
+            Span::styled(format!("{}{}", display_title, title_cursor), title_style),
         ])
     } else {
-        Line::from(format!(
-            "  {title_prefix} Title: {}{title_cursor}",
-            editor.title
-        ))
+        Line::from(vec![
+            Span::raw(format!("  {title_prefix} Title: ")),
+            Span::styled(format!("{}{}", display_title, title_cursor), title_style),
+        ])
     };
+
+    // Use different style for notes in new task placeholder
+    let notes_style = if is_new_task && editor.title.trim().is_empty() {
+        Style::default().fg(Color::DarkGray)
+    } else if editor.focus == Focus::Notes && editor.edit_active {
+        app.editor_theme.checklist_edit
+    } else {
+        Style::default()
+    };
+
     let notes_line = if editor.focus == Focus::Notes && editor.edit_active {
         Line::from(vec![
             Span::raw(format!("  {notes_prefix} Notes: ")),
-            Span::styled(
-                format!("{}{}", editor.notes, notes_cursor),
-                app.editor_theme.checklist_edit,
-            ),
+            Span::styled(format!("{}{}", editor.notes, notes_cursor), notes_style),
         ])
     } else {
-        Line::from(format!(
-            "  {notes_prefix} Notes: {}{notes_cursor}",
-            editor.notes
-        ))
+        Line::from(vec![
+            Span::raw(format!("  {notes_prefix} Notes: ")),
+            Span::styled(format!("{}{}", editor.notes, notes_cursor), notes_style),
+        ])
     };
     out.push(title_line);
     out.push(notes_line);
-    out.push(Line::from(format!(
-        "  {due_prefix} Due: {}  (t=Today, m=Tomorrow)",
-        due_label
-    )));
+    out.push(Line::from(vec![
+        Span::raw(format!("  {due_prefix} Due: {} ", due_label)),
+        Span::styled("(t=Today, m=Tomorrow)".to_string(), Style::default().fg(Color::DarkGray)),
+
+    ]));
     if editor.focus == Focus::DueDate && editor.edit_active {
         out.push(Line::from(""));
         out.extend(calendar_lines(
@@ -180,7 +212,11 @@ fn editor_lines(app: &App, editor: &crate::app::EditorState) -> Vec<Line<'static
 }
 
 fn focus_prefix(active: bool) -> &'static str {
-    if active { ">" } else { " " }
+    if active {
+        ">"
+    } else {
+        " "
+    }
 }
 
 fn calendar_lines(
