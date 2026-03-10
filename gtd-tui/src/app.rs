@@ -44,6 +44,12 @@ pub enum Mode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Layer {
+    TaskItem,
+    ChecklistItem,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Focus {
     Title,
     Notes,
@@ -82,6 +88,7 @@ pub struct EditorState {
     pub checklist_index: usize,
     pub edit_active: bool,
     pub focus: Focus,
+    pub layer: Layer,
     pub date_picker: DatePickerState,
 }
 
@@ -228,30 +235,35 @@ impl App {
         if key.code == KeyCode::Esc || self.keymap.cancel_edit.matches(key) {
             if editor.edit_active {
                 editor.edit_active = false;
+            } else if editor.layer == Layer::ChecklistItem {
+                editor.layer = Layer::TaskItem;
+                editor.checklist_index = 0;
             } else {
                 self.cancel_edit();
             }
             return Ok(());
         }
 
-        if self.keymap.checklist_next.matches(key)
-            && !editor.edit_active
-            && editor.focus == Focus::Checklist
-        {
-            if !editor.checklist.is_empty() {
-                editor.checklist_index =
-                    (editor.checklist_index + 1).min(editor.checklist.len().saturating_sub(1));
-            }
-        } else if self.keymap.checklist_prev.matches(key)
-            && !editor.edit_active
-            && editor.focus == Focus::Checklist
-        {
-            if editor.checklist_index > 0 {
-                editor.checklist_index -= 1;
-            }
-        } else if self.keymap.next_focus.matches(key) && !editor.edit_active {
+        match editor.layer {
+            Layer::TaskItem => self.handle_task_item_layer(key),
+            Layer::ChecklistItem => self.handle_checklist_item_layer(key),
+        }
+        Ok(())
+    }
+
+    fn handle_task_item_layer(&mut self, key: KeyEvent) {
+        let editor = match self.editor.as_mut() {
+            Some(editor) => editor,
+            None => return,
+        };
+
+        if editor.edit_active {
+            self.handle_edit_mode(key);
+            return;
+        }
+
+        if self.keymap.next_focus.matches(key) {
             editor.focus = editor.focus.next();
-            editor.edit_active = false;
             if editor.focus == Focus::Checklist {
                 if editor.checklist.is_empty() {
                     editor.checklist.push(ChecklistDraft {
@@ -261,9 +273,8 @@ impl App {
                 }
                 editor.checklist_index = 0;
             }
-        } else if self.keymap.prev_focus.matches(key) && !editor.edit_active {
+        } else if self.keymap.prev_focus.matches(key) {
             editor.focus = editor.focus.prev();
-            editor.edit_active = false;
             if editor.focus == Focus::Checklist {
                 if editor.checklist.is_empty() {
                     editor.checklist.push(ChecklistDraft {
@@ -273,66 +284,24 @@ impl App {
                 }
                 editor.checklist_index = 0;
             }
-        } else if self.keymap.date_prev_day_in_edit_mode.matches(key)
-            && editor.focus == Focus::DueDate
-            && editor.edit_active
-        {
-            editor.date_picker.move_days(-1)
-        } else if self.keymap.date_next_day_in_edit_mode.matches(key)
-            && editor.focus == Focus::DueDate
-            && editor.edit_active
-        {
-            editor.date_picker.move_days(1)
-        } else if self.keymap.date_prev_week.matches(key)
-            && editor.focus == Focus::DueDate
-            && editor.edit_active
-        {
-            editor.date_picker.move_days(-7)
-        } else if self.keymap.date_next_week.matches(key)
-            && editor.focus == Focus::DueDate
-            && editor.edit_active
-        {
-            editor.date_picker.move_days(7)
-        } else if self.keymap.date_prev_day.matches(key)
-            && editor.focus == Focus::DueDate
-            && !editor.edit_active
-        {
-            let base = editor.due_date.unwrap_or_else(|| Utc::now().date_naive());
-            let next = base - chrono::Duration::days(1);
-            editor.due_date = Some(next);
-            editor.date_picker.cursor = next;
-        } else if self.keymap.date_next_day.matches(key)
-            && editor.focus == Focus::DueDate
-            && !editor.edit_active
-        {
-            let base = editor.due_date.unwrap_or_else(|| Utc::now().date_naive());
-            let next = base + chrono::Duration::days(1);
-            editor.due_date = Some(next);
-            editor.date_picker.cursor = next;
-        } else if self.keymap.date_edit_mode.matches(key)
-            && editor.focus == Focus::DueDate
-            && !editor.edit_active
-        {
-            if editor.focus == Focus::Checklist && editor.checklist.is_empty() {
+        } else if self.keymap.date_edit_mode.matches(key) && editor.focus == Focus::Checklist {
+            editor.layer = Layer::ChecklistItem;
+            if editor.checklist.is_empty() {
                 editor.checklist.push(ChecklistDraft {
                     title: String::new(),
                     checked: false,
                 });
-                editor.checklist_index = 0;
             }
+            editor.checklist_index = 0;
+        } else if self.keymap.date_edit_mode.matches(key) {
             editor.edit_active = true;
-        } else if self.keymap.date_edit_mode.matches(key) && !editor.edit_active {
-            if editor.focus == Focus::Checklist && editor.checklist.is_empty() {
-                editor.checklist.push(ChecklistDraft {
-                    title: String::new(),
-                    checked: false,
-                });
-                editor.checklist_index = 0;
+            if editor.focus == Focus::DueDate {
+                if let Some(due) = editor.due_date {
+                    editor.date_picker.cursor = due;
+                }
             }
+        } else if key.code == KeyCode::Down && editor.focus == Focus::DueDate {
             editor.edit_active = true;
-        } else if key.code == KeyCode::Down && editor.focus == Focus::DueDate && editor.edit_active
-        {
-            editor.edit_active = false;
             editor.focus = Focus::Checklist;
             if editor.checklist.is_empty() {
                 editor.checklist.push(ChecklistDraft {
@@ -341,24 +310,7 @@ impl App {
                 });
             }
             editor.checklist_index = 0;
-            editor.edit_active = true;
-        } else if key.code == KeyCode::Up && editor.focus == Focus::Checklist && !editor.edit_active
-        {
-            if editor.checklist_index > 0 {
-                editor.checklist_index -= 1;
-            }
-        } else if key.code == KeyCode::Down
-            && editor.focus == Focus::Checklist
-            && !editor.edit_active
-        {
-            if !editor.checklist.is_empty() {
-                editor.checklist_index =
-                    (editor.checklist_index + 1).min(editor.checklist.len().saturating_sub(1));
-            }
-        } else if self.keymap.checklist_toggle.matches(key)
-            && editor.focus == Focus::Checklist
-            && !editor.edit_active
-        {
+        } else if self.keymap.checklist_toggle.matches(key) && editor.focus == Focus::Checklist {
             if let Some(item) = editor.checklist.get_mut(editor.checklist_index) {
                 item.checked = !item.checked;
             }
@@ -373,126 +325,170 @@ impl App {
                     editor.due_date = Some(editor.date_picker.cursor);
                 }
             }
-            return Ok(());
-        } else if self.keymap.date_prev_month.matches(key)
-            && editor.focus == Focus::DueDate
-            && editor.edit_active
-        {
-            editor.date_picker.move_months(-1)
-        } else if self.keymap.date_next_month.matches(key)
-            && editor.focus == Focus::DueDate
-            && editor.edit_active
-        {
-            editor.date_picker.move_months(1)
-        } else if self.keymap.date_today.matches(key)
-            && editor.focus == Focus::DueDate
-            && editor.edit_active
-        {
-            let today = Utc::now().date_naive();
-            editor.date_picker.cursor = today;
-            editor.due_date = Some(today);
-        } else if self.keymap.date_tomorrow.matches(key)
-            && editor.focus == Focus::DueDate
-            && editor.edit_active
-        {
-            let tomorrow = Utc::now().date_naive() + chrono::Duration::days(1);
-            editor.date_picker.cursor = tomorrow;
-            editor.due_date = Some(tomorrow);
-        } else {
-            match key.code {
-                KeyCode::Enter => Self::handle_enter(editor)?,
-                KeyCode::Backspace => Self::handle_backspace(editor),
-                KeyCode::Char(ch) => Self::handle_char(editor, ch),
-                _ => {}
-            }
+        } else if self.keymap.date_prev_day.matches(key) && editor.focus == Focus::DueDate {
+            let base = editor.due_date.unwrap_or_else(|| Utc::now().date_naive());
+            let next = base - chrono::Duration::days(1);
+            editor.due_date = Some(next);
+            editor.date_picker.cursor = next;
+        } else if self.keymap.date_next_day.matches(key) && editor.focus == Focus::DueDate {
+            let base = editor.due_date.unwrap_or_else(|| Utc::now().date_naive());
+            let next = base + chrono::Duration::days(1);
+            editor.due_date = Some(next);
+            editor.date_picker.cursor = next;
         }
-        Ok(())
     }
 
-    fn handle_enter(editor: &mut EditorState) -> Result<()> {
-        match editor.focus {
-            Focus::Title => editor.focus = Focus::Notes,
-            Focus::Notes => editor.focus = Focus::DueDate,
-            Focus::DueDate => {
-                editor.due_date = Some(editor.date_picker.cursor);
-                editor.edit_active = false;
+    fn handle_checklist_item_layer(&mut self, key: KeyEvent) {
+        let editor = match self.editor.as_mut() {
+            Some(editor) => editor,
+            None => return,
+        };
+
+        if editor.edit_active {
+            self.handle_checklist_edit_mode();
+            return;
+        }
+
+        if self.keymap.prev_focus.matches(key) {
+            if editor.checklist_index > 0 {
+                editor.checklist_index -= 1;
             }
-            Focus::Checklist => {
-                editor.checklist.insert(
-                    editor.checklist_index + 1,
-                    ChecklistDraft {
-                        title: String::new(),
-                        checked: false,
-                    },
-                );
-                editor.checklist_index += 1;
-                editor.edit_active = true;
+        } else if self.keymap.next_focus.matches(key) {
+            if !editor.checklist.is_empty() {
+                editor.checklist_index =
+                    (editor.checklist_index + 1).min(editor.checklist.len().saturating_sub(1));
+            }
+        } else if self.keymap.date_edit_mode.matches(key) {
+            editor.edit_active = true;
+        } else if self.keymap.cancel_edit.matches(key) {
+            editor.layer = Layer::TaskItem;
+            editor.checklist_index = 0;
+        } else if self.keymap.checklist_toggle.matches(key) {
+            if let Some(item) = editor.checklist.get_mut(editor.checklist_index) {
+                item.checked = !item.checked;
             }
         }
-        Ok(())
     }
 
-    fn handle_backspace(editor: &mut EditorState) {
+    fn handle_edit_mode(&mut self, key: KeyEvent) {
+        let editor = match self.editor.as_mut() {
+            Some(editor) => editor,
+            None => return,
+        };
+
         match editor.focus {
             Focus::Title => {
-                if editor.edit_active {
-                    editor.title.pop();
-                }
-            }
-            Focus::Notes => {
-                if editor.edit_active {
-                    editor.notes.pop();
-                }
-            }
-            Focus::DueDate => {
-                editor.due_date = None;
-            }
-            Focus::Checklist => {
-                if editor.checklist.is_empty() {
-                    return;
-                }
-                if !editor.edit_active {
-                    return;
-                }
-                let current = &mut editor.checklist[editor.checklist_index];
-                if current.title.is_empty() {
-                    editor.checklist.remove(editor.checklist_index);
-                    if editor.checklist_index > 0 {
-                        editor.checklist_index -= 1;
-                    }
-                } else {
-                    current.title.pop();
-                }
-            }
-        }
-    }
-
-    fn handle_char(editor: &mut EditorState, ch: char) {
-        match editor.focus {
-            Focus::Title => {
-                if editor.edit_active {
+                if let KeyCode::Char(ch) = key.code {
                     editor.title.push(ch);
+                } else if key.code == KeyCode::Backspace {
+                    editor.title.pop();
+                } else if key.code == KeyCode::Enter {
+                    editor.focus = Focus::Notes;
+                    editor.edit_active = false;
                 }
             }
             Focus::Notes => {
-                if editor.edit_active {
+                if let KeyCode::Char(ch) = key.code {
                     editor.notes.push(ch);
+                } else if key.code == KeyCode::Backspace {
+                    editor.notes.pop();
+                } else if key.code == KeyCode::Enter {
+                    editor.focus = Focus::DueDate;
+                    editor.edit_active = false;
                 }
             }
-            Focus::DueDate => {}
-            Focus::Checklist => {
-                if !editor.edit_active {
-                    return;
-                }
-                if editor.checklist.is_empty() {
-                    editor.checklist.push(ChecklistDraft {
-                        title: String::new(),
-                        checked: false,
-                    });
+            Focus::DueDate => {
+                if self.keymap.date_prev_day_in_edit_mode.matches(key) {
+                    editor.date_picker.move_days(-1);
+                } else if self.keymap.date_next_day_in_edit_mode.matches(key) {
+                    editor.date_picker.move_days(1);
+                } else if self.keymap.date_prev_week.matches(key) {
+                    editor.date_picker.move_days(-7);
+                } else if self.keymap.date_next_week.matches(key) {
+                    editor.date_picker.move_days(7);
+                } else if self.keymap.date_prev_month.matches(key) {
+                    editor.date_picker.move_months(-1);
+                } else if self.keymap.date_next_month.matches(key) {
+                    editor.date_picker.move_months(1);
+                } else if self.keymap.date_today.matches(key) {
+                    let today = Utc::now().date_naive();
+                    editor.date_picker.cursor = today;
+                    editor.due_date = Some(today);
+                } else if self.keymap.date_tomorrow.matches(key) {
+                    let tomorrow = Utc::now().date_naive() + chrono::Duration::days(1);
+                    editor.date_picker.cursor = tomorrow;
+                    editor.due_date = Some(tomorrow);
+                } else if key.code == KeyCode::Enter {
+                    editor.due_date = Some(editor.date_picker.cursor);
+                    editor.focus = Focus::Checklist;
+                    editor.edit_active = false;
+                    if editor.checklist.is_empty() {
+                        editor.checklist.push(ChecklistDraft {
+                            title: String::new(),
+                            checked: false,
+                        });
+                    }
+                    editor.checklist_index = 0;
+                } else if key.code == KeyCode::Down {
+                    editor.edit_active = false;
+                    editor.focus = Focus::Checklist;
+                    if editor.checklist.is_empty() {
+                        editor.checklist.push(ChecklistDraft {
+                            title: String::new(),
+                            checked: false,
+                        });
+                    }
                     editor.checklist_index = 0;
                 }
-                editor.checklist[editor.checklist_index].title.push(ch);
             }
+            Focus::Checklist => {
+                if let KeyCode::Char(ch) = key.code {
+                    if editor.checklist.is_empty() {
+                        editor.checklist.push(ChecklistDraft {
+                            title: String::new(),
+                            checked: false,
+                        });
+                        editor.checklist_index = 0;
+                    }
+                    editor.checklist[editor.checklist_index].title.push(ch);
+                } else if key.code == KeyCode::Backspace {
+                    if !editor.checklist.is_empty() {
+                        let current = &mut editor.checklist[editor.checklist_index];
+                        if current.title.is_empty() {
+                            editor.checklist.remove(editor.checklist_index);
+                            if editor.checklist_index > 0 {
+                                editor.checklist_index -= 1;
+                            }
+                        } else {
+                            current.title.pop();
+                        }
+                    }
+                } else if key.code == KeyCode::Enter {
+                    editor.checklist.insert(
+                        editor.checklist_index + 1,
+                        ChecklistDraft {
+                            title: String::new(),
+                            checked: false,
+                        },
+                    );
+                    editor.checklist_index += 1;
+                }
+            }
+        }
+    }
+
+    fn handle_checklist_edit_mode(&mut self) {
+        let editor = match self.editor.as_mut() {
+            Some(editor) => editor,
+            None => return,
+        };
+
+        if editor.checklist.is_empty() {
+            editor.checklist.push(ChecklistDraft {
+                title: String::new(),
+                checked: false,
+            });
+            editor.checklist_index = 0;
         }
     }
 
@@ -516,6 +512,7 @@ impl App {
             checklist_index: 0,
             edit_active: false,
             focus: Focus::Title,
+            layer: Layer::TaskItem,
             date_picker: DatePickerState::new(today),
         });
         self.mode = Mode::Editing;
@@ -556,6 +553,7 @@ impl App {
             checklist_index: 0,
             edit_active: false,
             focus: Focus::Title,
+            layer: Layer::TaskItem,
             date_picker: DatePickerState::new(seed_date),
         });
         self.mode = Mode::Editing;
