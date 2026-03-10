@@ -335,6 +335,20 @@ impl App {
             let next = base + chrono::Duration::days(1);
             editor.due_date = Some(next);
             editor.date_picker.cursor = next;
+        } else if self.keymap.date_today.matches(key)
+            && editor.focus == Focus::DueDate
+            && !editor.edit_active
+        {
+            let today = Utc::now().date_naive();
+            editor.due_date = Some(today);
+            editor.date_picker.cursor = today;
+        } else if self.keymap.date_tomorrow.matches(key)
+            && editor.focus == Focus::DueDate
+            && !editor.edit_active
+        {
+            let tomorrow = Utc::now().date_naive() + chrono::Duration::days(1);
+            editor.due_date = Some(tomorrow);
+            editor.date_picker.cursor = tomorrow;
         }
     }
 

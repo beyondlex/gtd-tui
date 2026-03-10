@@ -37,7 +37,23 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
         }
     }
 
-    let widget = Paragraph::new(lines).block(Block::default().title("Inbox").borders(Borders::ALL));
+    let completed_count = app
+        .tasks
+        .iter()
+        .filter(|t| matches!(t.status, gtd_core::models::TaskStatus::Completed))
+        .count();
+    let total_count = app.tasks.len();
+    let title_suffix = if total_count > 0 {
+        format!(" ({}/{})", completed_count, total_count)
+    } else {
+        String::new()
+    };
+
+    let widget = Paragraph::new(lines).block(
+        Block::default()
+            .title(format!("Inbox{}", title_suffix))
+            .borders(Borders::ALL),
+    );
     frame.render_widget(widget, area);
 }
 
@@ -111,15 +127,23 @@ fn editor_lines(app: &App, editor: &crate::app::EditorState) -> Vec<Line<'static
         ));
     }
 
+    let checked_count = editor.checklist.iter().filter(|item| item.checked).count();
+    let total_count = editor.checklist.len();
+    let count_str = if total_count > 0 {
+        format!("({}/{})", checked_count, total_count)
+    } else {
+        String::new()
+    };
+
     let checklist_header = if editor.focus == Focus::Checklist && editor.edit_active {
         Line::from(vec![
             Span::raw(format!("  {checklist_prefix} Checklist: ")),
             Span::styled("(editing)", app.editor_theme.checklist_edit),
         ])
     } else if editor.focus == Focus::Checklist && editor.layer == Layer::ChecklistItem {
-        Line::from(format!("  {checklist_prefix} Checklist:"))
+        Line::from(format!("  {checklist_prefix} Checklist: {}", count_str))
     } else {
-        Line::from(format!("  {checklist_prefix} Checklist:"))
+        Line::from(format!("  {checklist_prefix} Checklist: {}", count_str))
     };
     out.push(checklist_header);
 
