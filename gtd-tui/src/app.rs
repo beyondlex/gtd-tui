@@ -274,11 +274,9 @@ impl App {
                 editor.checklist_index = 0;
             }
         } else if self.keymap.edit_title.matches(key) {
-            if editor.focus == Focus::Title
-                || editor.focus == Focus::Notes
-            {
-                editor.edit_active = true;
-            }
+            editor.focus = Focus::Title;
+            editor.layer = Layer::TaskItem;
+            editor.edit_active = true;
         } else if self.keymap.prev_focus.matches(key) {
             editor.focus = editor.focus.prev();
             if editor.focus == Focus::Checklist {
@@ -379,6 +377,8 @@ impl App {
                     (editor.checklist_index + 1).min(editor.checklist.len().saturating_sub(1));
             }
         } else if self.keymap.edit_title.matches(key) {
+            editor.layer = Layer::TaskItem;
+            editor.focus = Focus::Title;
             editor.edit_active = true;
         } else if self.keymap.date_edit_mode.matches(key) {
             editor.edit_active = true;
@@ -616,6 +616,12 @@ impl App {
             self.storage.update_task(&task).map_err(|e| anyhow!(e))?;
             task_id
         } else {
+            let insert_index = if self.tasks.is_empty() {
+                0
+            } else {
+                (editor.insert_after + 1).min(self.tasks.len())
+            };
+            self.reindex_tasks_for_insert(insert_index, now)?;
             let task_id = Uuid::new_v4();
             let task = Task {
                 id: task_id,
@@ -629,11 +635,12 @@ impl App {
                 due_date: editor.due_date,
                 is_today: false,
                 is_someday: false,
-                sort_order: self.tasks.len() as i32,
+                sort_order: insert_index as i32,
                 created_at: now,
                 updated_at: now,
             };
             self.storage.create_task(&task).map_err(|e| anyhow!(e))?;
+            self.selected = insert_index;
             task_id
         };
 
@@ -641,6 +648,27 @@ impl App {
         self.mode = Mode::Normal;
         self.editor = None;
         self.refresh_tasks()?;
+        Ok(())
+    }
+
+    fn reindex_tasks_for_insert(
+        &mut self,
+        insert_index: usize,
+        now: chrono::DateTime<Utc>,
+    ) -> Result<()> {
+        for (index, task) in self.tasks.iter_mut().enumerate() {
+            let desired_sort_order = if index < insert_index {
+                index as i32
+            } else {
+                (index + 1) as i32
+            };
+            if task.sort_order == desired_sort_order {
+                continue;
+            }
+            task.sort_order = desired_sort_order;
+            task.updated_at = now;
+            self.storage.update_task(task).map_err(|e| anyhow!(e))?;
+        }
         Ok(())
     }
 
@@ -753,9 +781,20 @@ pub struct KeyBinding {
 
 impl KeyBinding {
     pub fn matches(&self, event: KeyEvent) -> bool {
-        matches!(event.code, KeyCode::Char(ch) if ch.to_ascii_lowercase() == self.key)
+        let event_char = match event.code {
+            KeyCode::Char(ch) => ch,
+            _ => return false,
+        };
+        let shift_pressed = event.modifiers.contains(KeyModifiers::SHIFT);
+        let shift_matches = if self.shift {
+            shift_pressed || event_char.is_ascii_uppercase()
+        } else {
+            !shift_pressed && !event_char.is_ascii_uppercase()
+        };
+
+        event_char.to_ascii_lowercase() == self.key
             && event.modifiers.contains(KeyModifiers::CONTROL) == self.ctrl
-            && event.modifiers.contains(KeyModifiers::SHIFT) == self.shift
+            && shift_matches
     }
 }
 
@@ -1195,13 +1234,18 @@ mod tests {
         app.storage.create_task(&task).expect("task");
         app.refresh_tasks().expect("refresh");
         app.start_edit_task().expect("edit");
+        assert_eq!(app.mode, Mode::Editing);
 
-        let editor = app.editor.as_mut().expect("editor");
-        editor.focus = Focus::Notes;
-        editor.edit_active = false;
+        {
+            let editor = app.editor.as_mut().expect("editor");
+            editor.focus = Focus::Notes;
+            editor.edit_active = false;
+        }
 
-        app.on_key(KeyEvent::new(KeyCode::Char('A'), KeyModifiers::SHIFT))
-            .expect("title edit mode");
+        let edit_title_key = KeyEvent::new(KeyCode::Char('A'), KeyModifiers::SHIFT);
+        assert!(app.keymap.edit_title.matches(edit_title_key));
+
+        app.on_key(edit_title_key).expect("title edit mode");
         let editor = app.editor.as_ref().expect("editor");
         assert_eq!(editor.focus, Focus::Title);
         assert!(editor.edit_active);
@@ -1216,6 +1260,51 @@ mod tests {
         let editor = app.editor.as_ref().expect("editor");
         assert_eq!(editor.focus, Focus::Title);
         assert!(!editor.edit_active);
+    }
+
+    #[test]
+    fn new_task_is_inserted_after_selected_task() {
+        let mut app = test_app();
+        let now = Utc::now();
+        for (sort_order, title) in ["First", "Second", "Third"].into_iter().enumerate() {
+            let task = Task {
+                id: Uuid::new_v4(),
+                project_id: None,
+                heading_id: None,
+                area_id: None,
+                title: title.to_string(),
+                notes: None,
+                status: TaskStatus::Pending,
+                start_date: None,
+                due_date: None,
+                is_today: false,
+                is_someday: false,
+                sort_order: sort_order as i32,
+                created_at: now,
+                updated_at: now,
+            };
+            app.storage.create_task(&task).expect("task");
+        }
+        app.refresh_tasks().expect("refresh");
+        app.selected = 1;
+
+        app.start_new_task();
+        let editor = app.editor.as_mut().expect("editor");
+        assert_eq!(editor.insert_after, 1);
+        assert!(editor.task_id.is_none());
+        assert_eq!(app.tasks[1].title, "Second");
+
+        editor.title = "Inserted".to_string();
+        app.save_edit().expect("save");
+
+        assert_eq!(
+            app.tasks
+                .iter()
+                .map(|task| task.title.as_str())
+                .collect::<Vec<_>>(),
+            vec!["First", "Second", "Inserted", "Third"]
+        );
+        assert_eq!(app.selected, 2);
     }
 }
 
