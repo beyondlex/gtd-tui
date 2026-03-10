@@ -4,7 +4,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 use ratatui::Frame;
 
-use crate::app::{App, Focus, Mode};
+use crate::app::{App, Focus, Layer, Mode};
 
 pub fn render(frame: &mut Frame, area: Rect, app: &App) {
     let mut lines: Vec<Line<'static>> = Vec::new();
@@ -37,8 +37,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
         }
     }
 
-    let widget = Paragraph::new(lines)
-        .block(Block::default().title("Inbox").borders(Borders::ALL));
+    let widget = Paragraph::new(lines).block(Block::default().title("Inbox").borders(Borders::ALL));
     frame.render_widget(widget, area);
 }
 
@@ -72,7 +71,10 @@ fn editor_lines(app: &App, editor: &crate::app::EditorState) -> Vec<Line<'static
     let title_line = if editor.focus == Focus::Title && editor.edit_active {
         Line::from(vec![
             Span::raw(format!("  {title_prefix} Title: ")),
-            Span::styled(format!("{}{}", editor.title, title_cursor), app.editor_theme.checklist_edit),
+            Span::styled(
+                format!("{}{}", editor.title, title_cursor),
+                app.editor_theme.checklist_edit,
+            ),
         ])
     } else {
         Line::from(format!(
@@ -83,7 +85,10 @@ fn editor_lines(app: &App, editor: &crate::app::EditorState) -> Vec<Line<'static
     let notes_line = if editor.focus == Focus::Notes && editor.edit_active {
         Line::from(vec![
             Span::raw(format!("  {notes_prefix} Notes: ")),
-            Span::styled(format!("{}{}", editor.notes, notes_cursor), app.editor_theme.checklist_edit),
+            Span::styled(
+                format!("{}{}", editor.notes, notes_cursor),
+                app.editor_theme.checklist_edit,
+            ),
         ])
     } else {
         Line::from(format!(
@@ -99,7 +104,11 @@ fn editor_lines(app: &App, editor: &crate::app::EditorState) -> Vec<Line<'static
     )));
     if editor.focus == Focus::DueDate && editor.edit_active {
         out.push(Line::from(""));
-        out.extend(calendar_lines(editor, app.calendar_theme, app.cursor_visible));
+        out.extend(calendar_lines(
+            editor,
+            app.calendar_theme,
+            app.cursor_visible,
+        ));
     }
 
     let checklist_header = if editor.focus == Focus::Checklist && editor.edit_active {
@@ -107,10 +116,16 @@ fn editor_lines(app: &App, editor: &crate::app::EditorState) -> Vec<Line<'static
             Span::raw(format!("  {checklist_prefix} Checklist: ")),
             Span::styled("(editing)", app.editor_theme.checklist_edit),
         ])
+    } else if editor.focus == Focus::Checklist && editor.layer == Layer::ChecklistItem {
+        Line::from(format!("  {checklist_prefix} Checklist:"))
     } else {
         Line::from(format!("  {checklist_prefix} Checklist:"))
     };
     out.push(checklist_header);
+
+    if editor.layer == Layer::TaskItem {
+        return out;
+    }
 
     if editor.checklist.is_empty() {
         out.push(Line::from("    - [ ]"));
@@ -142,7 +157,11 @@ fn editor_lines(app: &App, editor: &crate::app::EditorState) -> Vec<Line<'static
 }
 
 fn focus_prefix(active: bool) -> &'static str {
-    if active { ">" } else { " " }
+    if active {
+        ">"
+    } else {
+        " "
+    }
 }
 
 fn calendar_lines(
@@ -162,11 +181,7 @@ fn calendar_lines(
     let days_in_month = crate::app::days_in_month(year, month);
 
     let mut lines: Vec<Line<'static>> = Vec::new();
-    lines.push(Line::from(format!(
-        "    {} {}",
-        cursor.format("%B"),
-        year
-    )));
+    lines.push(Line::from(format!("    {} {}", cursor.format("%B"), year)));
 
     let header = [
         ("Mo", false),
@@ -179,7 +194,11 @@ fn calendar_lines(
     ];
     let mut spans = vec![Span::raw("    ")];
     for (label, weekend) in header {
-        let style = if weekend { theme.weekend } else { theme.weekday };
+        let style = if weekend {
+            theme.weekend
+        } else {
+            theme.weekday
+        };
         spans.push(Span::styled(format!(" {label} "), style));
     }
     lines.push(Line::from(spans));
