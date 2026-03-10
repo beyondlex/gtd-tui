@@ -216,7 +216,7 @@ impl App {
 
         match key.code {
             KeyCode::Esc => {
-                if editor.focus == Focus::Checklist && editor.edit_active {
+                if editor.edit_active {
                     editor.edit_active = false;
                 } else {
                     self.cancel_edit();
@@ -284,8 +284,8 @@ impl App {
                 editor.due_date = Some(next);
                 editor.date_picker.cursor = next;
             }
-            KeyCode::Char('l') if editor.focus == Focus::Checklist && !editor.edit_active => {
-                if editor.checklist.is_empty() {
+            KeyCode::Char('l') if !editor.edit_active => {
+                if editor.focus == Focus::Checklist && editor.checklist.is_empty() {
                     editor.checklist.push(ChecklistDraft {
                         title: String::new(),
                         checked: false,
