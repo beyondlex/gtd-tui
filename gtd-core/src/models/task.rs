@@ -15,6 +15,7 @@ pub struct Task {
     pub project_id: Option<Uuid>,
     pub heading_id: Option<Uuid>,
     pub area_id: Option<Uuid>,
+    pub name: Option<String>,
     pub title: String,
     pub notes: Option<String>,
     pub status: TaskStatus,
