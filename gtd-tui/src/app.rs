@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use chrono::{Datelike, NaiveDate, Utc};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use gtd_core::models::{ChecklistItem, Task, TaskStatus};
@@ -202,7 +202,7 @@ impl App {
             self.view = View::Today;
         } else if self.keymap.view_upcoming.matches(key) || key.code == KeyCode::Char('u') {
             self.view = View::Upcoming;
-        } else if self.keymap.view_anytime.matches(key) || key.code == KeyCode::Char('a') {
+        } else if self.keymap.view_anytime.matches(key) {
             self.view = View::Anytime;
         } else if self.keymap.view_someday.matches(key) || key.code == KeyCode::Char('s') {
             self.view = View::Someday;
@@ -272,12 +272,6 @@ impl App {
                     });
                 }
                 editor.checklist_index = 0;
-            }
-        } else if self.keymap.edit_title.matches(key) {
-            if editor.focus == Focus::Title
-                || editor.focus == Focus::Notes
-            {
-                editor.edit_active = true;
             }
         } else if self.keymap.prev_focus.matches(key) {
             editor.focus = editor.focus.prev();
@@ -378,8 +372,6 @@ impl App {
                 editor.checklist_index =
                     (editor.checklist_index + 1).min(editor.checklist.len().saturating_sub(1));
             }
-        } else if self.keymap.edit_title.matches(key) {
-            editor.edit_active = true;
         } else if self.keymap.date_edit_mode.matches(key) {
             editor.edit_active = true;
         } else if self.keymap.cancel_edit.matches(key) {
@@ -810,7 +802,6 @@ pub struct Keymap {
     pub select_prev: KeyBinding,
     pub new_task: KeyBinding,
     pub edit_task: KeyBinding,
-    pub edit_title: KeyBinding,
     pub toggle_task: KeyBinding,
     pub refresh: KeyBinding,
     pub save_edit: KeyBinding,
@@ -842,6 +833,11 @@ impl Keymap {
                 ctrl: false,
                 shift: false,
                 key: 'q',
+            },
+            refresh: KeyBinding {
+                ctrl: false,
+                shift: false,
+                key: 'r',
             },
             view_inbox: KeyBinding {
                 ctrl: false,
@@ -888,20 +884,10 @@ impl Keymap {
                 shift: false,
                 key: 'l',
             },
-            edit_title: KeyBinding {
-                ctrl: false,
-                shift: true,
-                key: 'a',
-            },
             toggle_task: KeyBinding {
                 ctrl: false,
                 shift: false,
                 key: 'x',
-            },
-            refresh: KeyBinding {
-                ctrl: false,
-                shift: false,
-                key: 'r',
             },
             save_edit: KeyBinding {
                 ctrl: true,
@@ -1059,11 +1045,6 @@ impl Keymap {
                 .as_deref()
                 .and_then(parse_key_binding)
                 .unwrap_or(default.edit_task),
-            edit_title: config
-                .edit_title
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.edit_title),
             toggle_task: config
                 .toggle_task
                 .as_deref()
@@ -1182,7 +1163,6 @@ impl Keymap {
 mod tests {
     use super::*;
     use crate::ui::theme::{CalendarTheme, EditorTheme};
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     use gtd_core::storage::Storage;
 
     fn test_app() -> App {
@@ -1209,55 +1189,6 @@ mod tests {
                 key: 'a',
             }
         );
-    }
-
-    #[test]
-    fn edit_title_shortcut_enters_title_mode_and_enter_finishes_it() {
-        let mut app = test_app();
-        let now = Utc::now();
-        let task = Task {
-            id: Uuid::new_v4(),
-            project_id: None,
-            heading_id: None,
-            area_id: None,
-            title: "Task".to_string(),
-            notes: Some("notes".to_string()),
-            status: TaskStatus::Pending,
-            start_date: None,
-            due_date: None,
-            is_today: false,
-            is_someday: false,
-            sort_order: 0,
-            created_at: now,
-            updated_at: now,
-        };
-        app.storage.create_task(&task).expect("task");
-        app.refresh_tasks().expect("refresh");
-        app.start_edit_task().expect("edit");
-        assert_eq!(app.mode, Mode::Editing);
-
-        {
-            let editor = app.editor.as_mut().expect("editor");
-            editor.focus = Focus::Notes;
-            editor.edit_active = false;
-        }
-
-        let edit_title_key = KeyEvent::new(KeyCode::Char('A'), KeyModifiers::SHIFT);
-        assert!(app.keymap.edit_title.matches(edit_title_key));
-
-        app.on_key(edit_title_key).expect("title edit mode");
-        let editor = app.editor.as_ref().expect("editor");
-        assert!(editor.edit_active);
-
-        app.on_key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE))
-            .expect("append char");
-        let editor = app.editor.as_ref().expect("editor");
-
-        app.on_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))
-            .expect("finish title edit");
-        let editor = app.editor.as_ref().expect("editor");
-        assert_eq!(editor.focus, Focus::DueDate);
-        assert!(!editor.edit_active);
     }
 
     #[test]
