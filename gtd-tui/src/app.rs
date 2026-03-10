@@ -102,7 +102,10 @@ impl DatePickerState {
     }
 
     fn move_days(&mut self, delta: i64) {
-        if let Some(next) = self.cursor.checked_add_signed(chrono::Duration::days(delta)) {
+        if let Some(next) = self
+            .cursor
+            .checked_add_signed(chrono::Duration::days(delta))
+        {
             self.cursor = next;
         }
     }
@@ -184,28 +187,36 @@ impl App {
     }
 
     fn on_key_normal(&mut self, key: KeyEvent) -> Result<()> {
-        match key.code {
-            KeyCode::Char('q') | KeyCode::Esc => self.should_quit = true,
-            KeyCode::Char('1') | KeyCode::Char('i') => self.view = View::Inbox,
-            KeyCode::Char('2') | KeyCode::Char('t') => self.view = View::Today,
-            KeyCode::Char('3') | KeyCode::Char('u') => self.view = View::Upcoming,
-            KeyCode::Char('4') | KeyCode::Char('a') => self.view = View::Anytime,
-            KeyCode::Char('5') | KeyCode::Char('s') => self.view = View::Someday,
-            KeyCode::Char('j') | KeyCode::Down => self.select_next(),
-            KeyCode::Char('k') | KeyCode::Up => self.select_prev(),
-            KeyCode::Char('n') => self.start_new_task(),
-            KeyCode::Char('l') if self.view == View::Inbox => self.start_edit_task()?,
-            KeyCode::Char('x') => self.toggle_selected_task()?,
-            KeyCode::Char('r') => self.refresh_tasks()?,
-            _ => {}
+        if self.keymap.quit.matches(key) || key.code == KeyCode::Esc {
+            self.should_quit = true;
+        } else if self.keymap.view_inbox.matches(key) || key.code == KeyCode::Char('i') {
+            self.view = View::Inbox;
+        } else if self.keymap.view_today.matches(key) || key.code == KeyCode::Char('t') {
+            self.view = View::Today;
+        } else if self.keymap.view_upcoming.matches(key) || key.code == KeyCode::Char('u') {
+            self.view = View::Upcoming;
+        } else if self.keymap.view_anytime.matches(key) || key.code == KeyCode::Char('a') {
+            self.view = View::Anytime;
+        } else if self.keymap.view_someday.matches(key) || key.code == KeyCode::Char('s') {
+            self.view = View::Someday;
+        } else if self.keymap.select_next.matches(key) || key.code == KeyCode::Down {
+            self.select_next();
+        } else if self.keymap.select_prev.matches(key) || key.code == KeyCode::Up {
+            self.select_prev();
+        } else if self.keymap.new_task.matches(key) {
+            self.start_new_task();
+        } else if self.keymap.edit_task.matches(key) && self.view == View::Inbox {
+            self.start_edit_task()?;
+        } else if self.keymap.toggle_task.matches(key) {
+            self.toggle_selected_task()?;
+        } else if self.keymap.refresh.matches(key) {
+            self.refresh_tasks()?;
         }
         Ok(())
     }
 
     fn on_key_edit(&mut self, key: KeyEvent) -> Result<()> {
-        if key.modifiers.contains(KeyModifiers::CONTROL)
-            && matches!(key.code, KeyCode::Char('s') | KeyCode::Char('S'))
-        {
+        if self.keymap.save_edit.matches(key) {
             return self.save_edit();
         }
 
@@ -214,89 +225,34 @@ impl App {
             None => return Ok(()),
         };
 
-        match key.code {
-            KeyCode::Esc => {
-                if editor.edit_active {
-                    editor.edit_active = false;
-                } else {
-                    self.cancel_edit();
-                }
-                return Ok(());
-            }
-            KeyCode::Char('j') if !editor.edit_active && editor.focus == Focus::Checklist => {
-                if !editor.checklist.is_empty() {
-                    editor.checklist_index = (editor.checklist_index + 1)
-                        .min(editor.checklist.len().saturating_sub(1));
-                }
-            }
-            KeyCode::Char('k') if !editor.edit_active && editor.focus == Focus::Checklist => {
-                if editor.checklist_index > 0 {
-                    editor.checklist_index -= 1;
-                }
-            }
-            KeyCode::Char('j') if !editor.edit_active => {
-                editor.focus = editor.focus.next();
+        if key.code == KeyCode::Esc || self.keymap.cancel_edit.matches(key) {
+            if editor.edit_active {
                 editor.edit_active = false;
-                if editor.focus == Focus::Checklist {
-                    if editor.checklist.is_empty() {
-                        editor.checklist.push(ChecklistDraft {
-                            title: String::new(),
-                            checked: false,
-                        });
-                    }
-                    editor.checklist_index = 0;
-                }
+            } else {
+                self.cancel_edit();
             }
-            KeyCode::Char('k') if !editor.edit_active => {
-                editor.focus = editor.focus.prev();
-                editor.edit_active = false;
-                if editor.focus == Focus::Checklist {
-                    if editor.checklist.is_empty() {
-                        editor.checklist.push(ChecklistDraft {
-                            title: String::new(),
-                            checked: false,
-                        });
-                    }
-                    editor.checklist_index = 0;
-                }
+            return Ok(());
+        }
+
+        if self.keymap.checklist_next.matches(key)
+            && !editor.edit_active
+            && editor.focus == Focus::Checklist
+        {
+            if !editor.checklist.is_empty() {
+                editor.checklist_index =
+                    (editor.checklist_index + 1).min(editor.checklist.len().saturating_sub(1));
             }
-            KeyCode::Char('h') if editor.focus == Focus::DueDate && editor.edit_active => {
-                editor.date_picker.move_days(-1)
+        } else if self.keymap.checklist_prev.matches(key)
+            && !editor.edit_active
+            && editor.focus == Focus::Checklist
+        {
+            if editor.checklist_index > 0 {
+                editor.checklist_index -= 1;
             }
-            KeyCode::Char('l') if editor.focus == Focus::DueDate && editor.edit_active => {
-                editor.date_picker.move_days(1)
-            }
-            KeyCode::Char('k') if editor.focus == Focus::DueDate && editor.edit_active => {
-                editor.date_picker.move_days(-7)
-            }
-            KeyCode::Char('j') if editor.focus == Focus::DueDate && editor.edit_active => {
-                editor.date_picker.move_days(7)
-            }
-            KeyCode::Char('h') if editor.focus == Focus::DueDate && !editor.edit_active => {
-                let base = editor.due_date.unwrap_or_else(|| Utc::now().date_naive());
-                let next = base - chrono::Duration::days(1);
-                editor.due_date = Some(next);
-                editor.date_picker.cursor = next;
-            }
-            KeyCode::Char('l') if editor.focus == Focus::DueDate && !editor.edit_active => {
-                let base = editor.due_date.unwrap_or_else(|| Utc::now().date_naive());
-                let next = base + chrono::Duration::days(1);
-                editor.due_date = Some(next);
-                editor.date_picker.cursor = next;
-            }
-            KeyCode::Char('l') if !editor.edit_active => {
-                if editor.focus == Focus::Checklist && editor.checklist.is_empty() {
-                    editor.checklist.push(ChecklistDraft {
-                        title: String::new(),
-                        checked: false,
-                    });
-                    editor.checklist_index = 0;
-                }
-                editor.edit_active = true;
-            }
-            KeyCode::Down if editor.focus == Focus::DueDate && editor.edit_active => {
-                editor.edit_active = false;
-                editor.focus = Focus::Checklist;
+        } else if self.keymap.next_focus.matches(key) && !editor.edit_active {
+            editor.focus = editor.focus.next();
+            editor.edit_active = false;
+            if editor.focus == Focus::Checklist {
                 if editor.checklist.is_empty() {
                     editor.checklist.push(ChecklistDraft {
                         title: String::new(),
@@ -304,57 +260,151 @@ impl App {
                     });
                 }
                 editor.checklist_index = 0;
-                editor.edit_active = true;
             }
-            KeyCode::Up if editor.focus == Focus::Checklist && !editor.edit_active => {
-                if editor.checklist_index > 0 {
-                    editor.checklist_index -= 1;
+        } else if self.keymap.prev_focus.matches(key) && !editor.edit_active {
+            editor.focus = editor.focus.prev();
+            editor.edit_active = false;
+            if editor.focus == Focus::Checklist {
+                if editor.checklist.is_empty() {
+                    editor.checklist.push(ChecklistDraft {
+                        title: String::new(),
+                        checked: false,
+                    });
                 }
+                editor.checklist_index = 0;
             }
-            KeyCode::Down if editor.focus == Focus::Checklist && !editor.edit_active => {
-                if !editor.checklist.is_empty() {
-                    editor.checklist_index = (editor.checklist_index + 1)
-                        .min(editor.checklist.len().saturating_sub(1));
-                }
+        } else if self.keymap.date_prev_day_in_edit_mode.matches(key)
+            && editor.focus == Focus::DueDate
+            && editor.edit_active
+        {
+            editor.date_picker.move_days(-1)
+        } else if self.keymap.date_next_day_in_edit_mode.matches(key)
+            && editor.focus == Focus::DueDate
+            && editor.edit_active
+        {
+            editor.date_picker.move_days(1)
+        } else if self.keymap.date_prev_week.matches(key)
+            && editor.focus == Focus::DueDate
+            && editor.edit_active
+        {
+            editor.date_picker.move_days(-7)
+        } else if self.keymap.date_next_week.matches(key)
+            && editor.focus == Focus::DueDate
+            && editor.edit_active
+        {
+            editor.date_picker.move_days(7)
+        } else if self.keymap.date_prev_day.matches(key)
+            && editor.focus == Focus::DueDate
+            && !editor.edit_active
+        {
+            let base = editor.due_date.unwrap_or_else(|| Utc::now().date_naive());
+            let next = base - chrono::Duration::days(1);
+            editor.due_date = Some(next);
+            editor.date_picker.cursor = next;
+        } else if self.keymap.date_next_day.matches(key)
+            && editor.focus == Focus::DueDate
+            && !editor.edit_active
+        {
+            let base = editor.due_date.unwrap_or_else(|| Utc::now().date_naive());
+            let next = base + chrono::Duration::days(1);
+            editor.due_date = Some(next);
+            editor.date_picker.cursor = next;
+        } else if self.keymap.date_edit_mode.matches(key)
+            && editor.focus == Focus::DueDate
+            && !editor.edit_active
+        {
+            if editor.focus == Focus::Checklist && editor.checklist.is_empty() {
+                editor.checklist.push(ChecklistDraft {
+                    title: String::new(),
+                    checked: false,
+                });
+                editor.checklist_index = 0;
             }
-            KeyCode::Char('x') if editor.focus == Focus::Checklist && !editor.edit_active => {
-                if let Some(item) = editor.checklist.get_mut(editor.checklist_index) {
-                    item.checked = !item.checked;
-                }
+            editor.edit_active = true;
+        } else if self.keymap.date_edit_mode.matches(key) && !editor.edit_active {
+            if editor.focus == Focus::Checklist && editor.checklist.is_empty() {
+                editor.checklist.push(ChecklistDraft {
+                    title: String::new(),
+                    checked: false,
+                });
+                editor.checklist_index = 0;
             }
-            _ if self.keymap.checklist_edit_toggle.matches(key) => {
-                editor.edit_active = !editor.edit_active;
-                if editor.focus == Focus::DueDate {
-                    if editor.edit_active {
-                        if let Some(due) = editor.due_date {
-                            editor.date_picker.cursor = due;
-                        }
-                    } else {
-                        editor.due_date = Some(editor.date_picker.cursor);
+            editor.edit_active = true;
+        } else if key.code == KeyCode::Down && editor.focus == Focus::DueDate && editor.edit_active
+        {
+            editor.edit_active = false;
+            editor.focus = Focus::Checklist;
+            if editor.checklist.is_empty() {
+                editor.checklist.push(ChecklistDraft {
+                    title: String::new(),
+                    checked: false,
+                });
+            }
+            editor.checklist_index = 0;
+            editor.edit_active = true;
+        } else if key.code == KeyCode::Up && editor.focus == Focus::Checklist && !editor.edit_active
+        {
+            if editor.checklist_index > 0 {
+                editor.checklist_index -= 1;
+            }
+        } else if key.code == KeyCode::Down
+            && editor.focus == Focus::Checklist
+            && !editor.edit_active
+        {
+            if !editor.checklist.is_empty() {
+                editor.checklist_index =
+                    (editor.checklist_index + 1).min(editor.checklist.len().saturating_sub(1));
+            }
+        } else if self.keymap.checklist_toggle.matches(key)
+            && editor.focus == Focus::Checklist
+            && !editor.edit_active
+        {
+            if let Some(item) = editor.checklist.get_mut(editor.checklist_index) {
+                item.checked = !item.checked;
+            }
+        } else if self.keymap.checklist_edit_toggle.matches(key) {
+            editor.edit_active = !editor.edit_active;
+            if editor.focus == Focus::DueDate {
+                if editor.edit_active {
+                    if let Some(due) = editor.due_date {
+                        editor.date_picker.cursor = due;
                     }
+                } else {
+                    editor.due_date = Some(editor.date_picker.cursor);
                 }
-                return Ok(());
             }
-            KeyCode::Char('p') if editor.focus == Focus::DueDate && editor.edit_active => {
-                editor.date_picker.move_months(-1)
+            return Ok(());
+        } else if self.keymap.date_prev_month.matches(key)
+            && editor.focus == Focus::DueDate
+            && editor.edit_active
+        {
+            editor.date_picker.move_months(-1)
+        } else if self.keymap.date_next_month.matches(key)
+            && editor.focus == Focus::DueDate
+            && editor.edit_active
+        {
+            editor.date_picker.move_months(1)
+        } else if self.keymap.date_today.matches(key)
+            && editor.focus == Focus::DueDate
+            && editor.edit_active
+        {
+            let today = Utc::now().date_naive();
+            editor.date_picker.cursor = today;
+            editor.due_date = Some(today);
+        } else if self.keymap.date_tomorrow.matches(key)
+            && editor.focus == Focus::DueDate
+            && editor.edit_active
+        {
+            let tomorrow = Utc::now().date_naive() + chrono::Duration::days(1);
+            editor.date_picker.cursor = tomorrow;
+            editor.due_date = Some(tomorrow);
+        } else {
+            match key.code {
+                KeyCode::Enter => Self::handle_enter(editor)?,
+                KeyCode::Backspace => Self::handle_backspace(editor),
+                KeyCode::Char(ch) => Self::handle_char(editor, ch),
+                _ => {}
             }
-            KeyCode::Char('n') if editor.focus == Focus::DueDate && editor.edit_active => {
-                editor.date_picker.move_months(1)
-            }
-            KeyCode::Char('t') if editor.focus == Focus::DueDate && editor.edit_active => {
-                let today = Utc::now().date_naive();
-                editor.date_picker.cursor = today;
-                editor.due_date = Some(today);
-            }
-            KeyCode::Char('m') if editor.focus == Focus::DueDate && editor.edit_active => {
-                let tomorrow = Utc::now().date_naive() + chrono::Duration::days(1);
-                editor.date_picker.cursor = tomorrow;
-                editor.due_date = Some(tomorrow);
-            }
-            KeyCode::Enter => Self::handle_enter(editor)?,
-            KeyCode::Backspace => Self::handle_backspace(editor),
-            KeyCode::Char(ch) => Self::handle_char(editor, ch),
-            _ => {}
         }
         Ok(())
     }
@@ -365,7 +415,7 @@ impl App {
             Focus::Notes => editor.focus = Focus::DueDate,
             Focus::DueDate => {
                 editor.due_date = Some(editor.date_picker.cursor);
-                editor.focus = Focus::Checklist;
+                editor.edit_active = false;
             }
             Focus::Checklist => {
                 editor.checklist.insert(
@@ -447,7 +497,11 @@ impl App {
     }
 
     fn start_new_task(&mut self) {
-        let insert_after = if self.tasks.is_empty() { 0 } else { self.selected };
+        let insert_after = if self.tasks.is_empty() {
+            0
+        } else {
+            self.selected
+        };
         let today = Utc::now().date_naive();
         self.editor = Some(EditorState {
             task_id: None,
@@ -684,19 +738,337 @@ impl KeyBinding {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Keymap {
+    pub quit: KeyBinding,
+    pub view_inbox: KeyBinding,
+    pub view_today: KeyBinding,
+    pub view_upcoming: KeyBinding,
+    pub view_anytime: KeyBinding,
+    pub view_someday: KeyBinding,
+    pub select_next: KeyBinding,
+    pub select_prev: KeyBinding,
+    pub new_task: KeyBinding,
+    pub edit_task: KeyBinding,
+    pub toggle_task: KeyBinding,
+    pub refresh: KeyBinding,
+    pub save_edit: KeyBinding,
+    pub cancel_edit: KeyBinding,
+    pub next_focus: KeyBinding,
+    pub prev_focus: KeyBinding,
     pub checklist_edit_toggle: KeyBinding,
+    pub date_prev_day: KeyBinding,
+    pub date_next_day: KeyBinding,
+    pub date_prev_day_in_edit_mode: KeyBinding,
+    pub date_next_day_in_edit_mode: KeyBinding,
+    pub date_prev_week: KeyBinding,
+    pub date_next_week: KeyBinding,
+    pub date_edit_mode: KeyBinding,
+    pub date_prev_month: KeyBinding,
+    pub date_next_month: KeyBinding,
+    pub date_today: KeyBinding,
+    pub date_tomorrow: KeyBinding,
+    pub checklist_toggle: KeyBinding,
+    pub checklist_add: KeyBinding,
+    pub checklist_next: KeyBinding,
+    pub checklist_prev: KeyBinding,
 }
 
 impl Keymap {
-    pub fn from_config(config: &KeysConfig) -> Self {
-        let default = KeyBinding { ctrl: true, key: 'e' };
-        let checklist_edit_toggle = config
-            .checklist_edit_toggle
-            .as_deref()
-            .and_then(parse_key_binding)
-            .unwrap_or(default);
+    pub fn default_keymap() -> Self {
         Self {
-            checklist_edit_toggle,
+            quit: KeyBinding {
+                ctrl: false,
+                key: 'q',
+            },
+            view_inbox: KeyBinding {
+                ctrl: false,
+                key: '1',
+            },
+            view_today: KeyBinding {
+                ctrl: false,
+                key: '2',
+            },
+            view_upcoming: KeyBinding {
+                ctrl: false,
+                key: '3',
+            },
+            view_anytime: KeyBinding {
+                ctrl: false,
+                key: '4',
+            },
+            view_someday: KeyBinding {
+                ctrl: false,
+                key: '5',
+            },
+            select_next: KeyBinding {
+                ctrl: false,
+                key: 'j',
+            },
+            select_prev: KeyBinding {
+                ctrl: false,
+                key: 'k',
+            },
+            new_task: KeyBinding {
+                ctrl: false,
+                key: 'n',
+            },
+            edit_task: KeyBinding {
+                ctrl: false,
+                key: 'l',
+            },
+            toggle_task: KeyBinding {
+                ctrl: false,
+                key: 'x',
+            },
+            refresh: KeyBinding {
+                ctrl: false,
+                key: 'r',
+            },
+            save_edit: KeyBinding {
+                ctrl: true,
+                key: 's',
+            },
+            cancel_edit: KeyBinding {
+                ctrl: false,
+                key: 'q',
+            },
+            next_focus: KeyBinding {
+                ctrl: false,
+                key: 'j',
+            },
+            prev_focus: KeyBinding {
+                ctrl: false,
+                key: 'k',
+            },
+            checklist_edit_toggle: KeyBinding {
+                ctrl: true,
+                key: 'e',
+            },
+            date_prev_day: KeyBinding {
+                ctrl: true,
+                key: 'h',
+            },
+            date_next_day: KeyBinding {
+                ctrl: true,
+                key: 'l',
+            },
+            date_prev_day_in_edit_mode: KeyBinding {
+                ctrl: false,
+                key: 'h',
+            },
+            date_next_day_in_edit_mode: KeyBinding {
+                ctrl: false,
+                key: 'l',
+            },
+            date_prev_week: KeyBinding {
+                ctrl: false,
+                key: 'k',
+            },
+            date_next_week: KeyBinding {
+                ctrl: false,
+                key: 'j',
+            },
+            date_edit_mode: KeyBinding {
+                ctrl: false,
+                key: 'l',
+            },
+            date_prev_month: KeyBinding {
+                ctrl: false,
+                key: 'p',
+            },
+            date_next_month: KeyBinding {
+                ctrl: false,
+                key: 'n',
+            },
+            date_today: KeyBinding {
+                ctrl: false,
+                key: 't',
+            },
+            date_tomorrow: KeyBinding {
+                ctrl: false,
+                key: 'm',
+            },
+            checklist_toggle: KeyBinding {
+                ctrl: false,
+                key: 'x',
+            },
+            checklist_add: KeyBinding {
+                ctrl: false,
+                key: 'l',
+            },
+            checklist_next: KeyBinding {
+                ctrl: false,
+                key: 'j',
+            },
+            checklist_prev: KeyBinding {
+                ctrl: false,
+                key: 'k',
+            },
+        }
+    }
+
+    pub fn from_config(config: &KeysConfig) -> Self {
+        let default = Self::default_keymap();
+        Self {
+            quit: config
+                .quit
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.quit),
+            view_inbox: config
+                .view_inbox
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.view_inbox),
+            view_today: config
+                .view_today
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.view_today),
+            view_upcoming: config
+                .view_upcoming
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.view_upcoming),
+            view_anytime: config
+                .view_anytime
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.view_anytime),
+            view_someday: config
+                .view_someday
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.view_someday),
+            select_next: config
+                .select_next
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.select_next),
+            select_prev: config
+                .select_prev
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.select_prev),
+            new_task: config
+                .new_task
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.new_task),
+            edit_task: config
+                .edit_task
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.edit_task),
+            toggle_task: config
+                .toggle_task
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.toggle_task),
+            refresh: config
+                .refresh
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.refresh),
+            save_edit: config
+                .save_edit
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.save_edit),
+            cancel_edit: config
+                .cancel_edit
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.cancel_edit),
+            next_focus: config
+                .next_focus
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.next_focus),
+            prev_focus: config
+                .prev_focus
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.prev_focus),
+            checklist_edit_toggle: config
+                .checklist_edit_toggle
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.checklist_edit_toggle),
+            date_prev_day: config
+                .date_prev_day
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.date_prev_day),
+            date_next_day: config
+                .date_next_day
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.date_next_day),
+            date_prev_day_in_edit_mode: config
+                .date_prev_day
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.date_prev_day_in_edit_mode),
+            date_next_day_in_edit_mode: config
+                .date_next_day
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.date_next_day_in_edit_mode),
+            date_prev_week: config
+                .date_prev_week
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.date_prev_week),
+            date_next_week: config
+                .date_next_week
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.date_next_week),
+            date_edit_mode: config
+                .date_edit_mode
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.date_edit_mode),
+            date_prev_month: config
+                .date_prev_month
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.date_prev_month),
+            date_next_month: config
+                .date_next_month
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.date_next_month),
+            date_today: config
+                .date_today
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.date_today),
+            date_tomorrow: config
+                .date_tomorrow
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.date_tomorrow),
+            checklist_toggle: config
+                .checklist_toggle
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.checklist_toggle),
+            checklist_add: config
+                .checklist_add
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.checklist_add),
+            checklist_next: config
+                .checklist_next
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.checklist_next),
+            checklist_prev: config
+                .checklist_prev
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.checklist_prev),
         }
     }
 }

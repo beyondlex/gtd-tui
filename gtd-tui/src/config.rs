@@ -39,7 +39,36 @@ pub struct EditorThemeConfig {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct KeysConfig {
+    pub quit: Option<String>,
+    pub view_inbox: Option<String>,
+    pub view_today: Option<String>,
+    pub view_upcoming: Option<String>,
+    pub view_anytime: Option<String>,
+    pub view_someday: Option<String>,
+    pub select_next: Option<String>,
+    pub select_prev: Option<String>,
+    pub new_task: Option<String>,
+    pub edit_task: Option<String>,
+    pub toggle_task: Option<String>,
+    pub refresh: Option<String>,
+    pub save_edit: Option<String>,
+    pub cancel_edit: Option<String>,
+    pub next_focus: Option<String>,
+    pub prev_focus: Option<String>,
     pub checklist_edit_toggle: Option<String>,
+    pub date_prev_day: Option<String>,
+    pub date_next_day: Option<String>,
+    pub date_prev_week: Option<String>,
+    pub date_next_week: Option<String>,
+    pub date_edit_mode: Option<String>,
+    pub date_prev_month: Option<String>,
+    pub date_next_month: Option<String>,
+    pub date_today: Option<String>,
+    pub date_tomorrow: Option<String>,
+    pub checklist_toggle: Option<String>,
+    pub checklist_add: Option<String>,
+    pub checklist_next: Option<String>,
+    pub checklist_prev: Option<String>,
 }
 
 pub fn db_path() -> Result<PathBuf> {
@@ -73,7 +102,7 @@ pub fn load() -> Result<Config> {
     }
     let content = fs::read_to_string(&path)
         .with_context(|| format!("failed to read config: {}", path.display()))?;
-    let config: Config = toml::from_str(&content)
-        .with_context(|| format!("invalid config: {}", path.display()))?;
+    let config: Config =
+        toml::from_str(&content).with_context(|| format!("invalid config: {}", path.display()))?;
     Ok(config)
 }
