@@ -2,7 +2,7 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Context, Result};
 use serde::Deserialize;
 
 const DB_ENV_VAR: &str = "GTD_TUI_DB_PATH";
@@ -35,6 +35,12 @@ pub struct CalendarThemeConfig {
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct EditorThemeConfig {
     pub checklist_edit: Option<String>,
+    pub task_selected: Option<String>,
+    pub checklist_item_selected: Option<String>,
+    pub field_title: Option<String>,
+    pub field_notes: Option<String>,
+    pub field_due: Option<String>,
+    pub field_checklist: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]

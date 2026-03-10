@@ -14,6 +14,12 @@ pub struct CalendarTheme {
 #[derive(Debug, Clone, Copy)]
 pub struct EditorTheme {
     pub checklist_edit: Style,
+    pub task_selected: Style,
+    pub checklist_item_selected: Style,
+    pub field_title: Style,
+    pub field_notes: Style,
+    pub field_due: Style,
+    pub field_checklist: Style,
 }
 
 impl CalendarTheme {
@@ -68,7 +74,46 @@ impl EditorTheme {
                 .fg(Color::LightYellow)
                 .add_modifier(Modifier::BOLD)
         });
-        Self { checklist_edit }
+        let task_selected = parse_style(config.task_selected.as_deref()).unwrap_or_else(|| {
+            Style::default()
+                .fg(Color::Blue)
+                .add_modifier(Modifier::BOLD)
+        });
+        let checklist_item_selected = parse_style(config.checklist_item_selected.as_deref())
+            .unwrap_or_else(|| {
+                Style::default()
+                    .fg(Color::Blue)
+                    .add_modifier(Modifier::BOLD)
+            });
+        let field_title = parse_style(config.field_title.as_deref()).unwrap_or_else(|| {
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD)
+        });
+        let field_notes = parse_style(config.field_notes.as_deref()).unwrap_or_else(|| {
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD)
+        });
+        let field_due = parse_style(config.field_due.as_deref()).unwrap_or_else(|| {
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD)
+        });
+        let field_checklist = parse_style(config.field_checklist.as_deref()).unwrap_or_else(|| {
+            Style::default()
+                .fg(Color::Magenta)
+                .add_modifier(Modifier::BOLD)
+        });
+        Self {
+            checklist_edit,
+            task_selected,
+            checklist_item_selected,
+            field_title,
+            field_notes,
+            field_due,
+            field_checklist,
+        }
     }
 }
 
@@ -77,6 +122,24 @@ impl Default for EditorTheme {
         Self {
             checklist_edit: Style::default()
                 .fg(Color::LightYellow)
+                .add_modifier(Modifier::BOLD),
+            task_selected: Style::default()
+                .fg(Color::Blue)
+                .add_modifier(Modifier::BOLD),
+            checklist_item_selected: Style::default()
+                .fg(Color::Blue)
+                .add_modifier(Modifier::BOLD),
+            field_title: Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+            field_notes: Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
+            field_due: Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+            field_checklist: Style::default()
+                .fg(Color::Magenta)
                 .add_modifier(Modifier::BOLD),
         }
     }

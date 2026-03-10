@@ -7,7 +7,7 @@ use ratatui::Frame;
 use crate::app::{App, Focus, Layer, Mode};
 
 pub fn render(frame: &mut Frame, area: Rect, app: &App) {
-    let mut lines: Vec<Line<'static>> = Vec::new();
+    let mut lines: Vec<Line> = Vec::new();
 
     for (index, task) in app.tasks.iter().enumerate() {
         let selected = index == app.selected && app.mode == Mode::Normal;
@@ -20,7 +20,19 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
             .map(|d| format!(" ({})", d.format("%Y-%m-%d")))
             .unwrap_or_default();
         let prefix = if selected { ">" } else { " " };
-        lines.push(Line::from(format!("{prefix} {status} {}{due}", task.title)));
+
+        if selected {
+            lines.push(Line::from(vec![
+                Span::raw(prefix),
+                Span::raw(" "),
+                Span::raw(status),
+                Span::raw(" "),
+                Span::styled(&task.title, app.editor_theme.task_selected),
+                Span::raw(due),
+            ]));
+        } else {
+            lines.push(Line::from(format!("{prefix} {status} {}{due}", task.title)));
+        }
 
         if let Some(editor) = &app.editor {
             if editor.insert_after == index {
@@ -65,8 +77,8 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
     frame.render_widget(widget, area);
 }
 
-fn editor_lines(app: &App, editor: &crate::app::EditorState) -> Vec<Line<'static>> {
-    let mut out: Vec<Line<'static>> = Vec::new();
+fn editor_lines<'a>(app: &'a App, editor: &'a crate::app::EditorState) -> Vec<Line<'a>> {
+    let mut out: Vec<Line<'a>> = Vec::new();
     let title_prefix = focus_prefix(editor.focus == Focus::Title);
     let notes_prefix = focus_prefix(editor.focus == Focus::Notes);
     let due_prefix = focus_prefix(editor.focus == Focus::DueDate);
@@ -110,14 +122,20 @@ fn editor_lines(app: &App, editor: &crate::app::EditorState) -> Vec<Line<'static
         Style::default()
     };
 
+    let title_field_style = if editor.focus == Focus::Title {
+        app.editor_theme.field_title
+    } else {
+        Style::default()
+    };
+
     let title_line = if editor.focus == Focus::Title && editor.edit_active {
         Line::from(vec![
-            Span::raw(format!("  {title_prefix} Title: ")),
+            Span::styled(format!("  {title_prefix} Title: "), title_field_style),
             Span::styled(format!("{}{}", display_title, title_cursor), title_style),
         ])
     } else {
         Line::from(vec![
-            Span::raw(format!("  {title_prefix} Title: ")),
+            Span::styled(format!("  {title_prefix} Title: "), title_field_style),
             Span::styled(format!("{}{}", display_title, title_cursor), title_style),
         ])
     };
@@ -131,23 +149,42 @@ fn editor_lines(app: &App, editor: &crate::app::EditorState) -> Vec<Line<'static
         Style::default()
     };
 
+    let notes_field_style = if editor.focus == Focus::Notes {
+        app.editor_theme.field_notes
+    } else {
+        Style::default()
+    };
+
     let notes_line = if editor.focus == Focus::Notes && editor.edit_active {
         Line::from(vec![
-            Span::raw(format!("  {notes_prefix} Notes: ")),
+            Span::styled(format!("  {notes_prefix} Notes: "), notes_field_style),
             Span::styled(format!("{}{}", editor.notes, notes_cursor), notes_style),
         ])
     } else {
         Line::from(vec![
-            Span::raw(format!("  {notes_prefix} Notes: ")),
+            Span::styled(format!("  {notes_prefix} Notes: "), notes_field_style),
             Span::styled(format!("{}{}", editor.notes, notes_cursor), notes_style),
         ])
     };
+
+    let due_field_style = if editor.focus == Focus::DueDate {
+        app.editor_theme.field_due
+    } else {
+        Style::default()
+    };
+
     out.push(title_line);
     out.push(notes_line);
     out.push(Line::from(vec![
-        Span::raw(format!("  {due_prefix} Due: {} ", due_label)),
-        Span::styled("(t=Today, m=Tomorrow)".to_string(), Style::default().fg(Color::DarkGray)),
-
+        Span::styled(format!("  {due_prefix} Due: "), due_field_style),
+        Span::styled(
+            format!("{} ", due_label),
+            Style::default().fg(Color::DarkGray),
+        ),
+        Span::styled(
+            "(t=Today, m=Tomorrow)".to_string(),
+            Style::default().fg(Color::DarkGray),
+        ),
     ]));
     if editor.focus == Focus::DueDate && editor.edit_active {
         out.push(Line::from(""));
@@ -166,15 +203,36 @@ fn editor_lines(app: &App, editor: &crate::app::EditorState) -> Vec<Line<'static
         String::new()
     };
 
+    let checklist_field_style = if editor.focus == Focus::Checklist {
+        app.editor_theme.field_checklist
+    } else {
+        Style::default()
+    };
+
     let checklist_header = if editor.focus == Focus::Checklist && editor.edit_active {
         Line::from(vec![
-            Span::raw(format!("  {checklist_prefix} Checklist: ")),
+            Span::styled(
+                format!("  {checklist_prefix} Checklist: "),
+                checklist_field_style,
+            ),
             Span::styled("(editing)", app.editor_theme.checklist_edit),
         ])
     } else if editor.focus == Focus::Checklist && editor.layer == Layer::ChecklistItem {
-        Line::from(format!("  {checklist_prefix} Checklist: {}", count_str))
+        Line::from(vec![
+            Span::styled(
+                format!("  {checklist_prefix} Checklist: "),
+                checklist_field_style,
+            ),
+            Span::styled(count_str, Style::default()),
+        ])
     } else {
-        Line::from(format!("  {checklist_prefix} Checklist: {}", count_str))
+        Line::from(vec![
+            Span::styled(
+                format!("  {checklist_prefix} Checklist: "),
+                checklist_field_style,
+            ),
+            Span::styled(count_str, Style::default()),
+        ])
     };
     out.push(checklist_header);
 
@@ -199,6 +257,16 @@ fn editor_lines(app: &App, editor: &crate::app::EditorState) -> Vec<Line<'static
                     format!("    {marker} {checkbox} {}{cursor}", item.title),
                     app.editor_theme.checklist_edit,
                 )));
+            } else if selected {
+                out.push(Line::from(vec![
+                    Span::raw("    "),
+                    Span::raw(marker),
+                    Span::raw(" "),
+                    Span::raw(checkbox),
+                    Span::raw(" "),
+                    Span::styled(&item.title, app.editor_theme.checklist_item_selected),
+                    Span::raw(cursor),
+                ]));
             } else {
                 out.push(Line::from(format!(
                     "    {marker} {checkbox} {}{cursor}",
