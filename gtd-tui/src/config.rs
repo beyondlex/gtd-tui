@@ -2,7 +2,7 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use serde::Deserialize;
 
 const DB_ENV_VAR: &str = "GTD_TUI_DB_PATH";
@@ -49,6 +49,7 @@ pub struct KeysConfig {
     pub select_prev: Option<String>,
     pub new_task: Option<String>,
     pub edit_task: Option<String>,
+    pub edit_title: Option<String>,
     pub toggle_task: Option<String>,
     pub refresh: Option<String>,
     pub save_edit: Option<String>,

@@ -35,6 +35,7 @@ GTD_TUI_DB_PATH=/path/to/gtd.db cargo run -p gtd-tui
 ### TaskItem 层（Normal 模式）
 
 - `j` / `k`：切换字段焦点 (Title → Notes → Due → Checklist → Title)
+- `A`：直接进入 Title 编辑模式
 - `l`：进入编辑模式（Title/Notes/Due）或进入 ChecklistItem 层（Checklist）
 - `x`：切换 Checklist 条目完成状态
 
@@ -90,6 +91,7 @@ checklist_edit = "lightyellow bold"
 [keys]
 quit = "q"
 new_task = "n"
+edit_title = "A"
 select_next = "j"
 select_prev = "k"
 save_edit = "ctrl+s"
@@ -109,6 +111,7 @@ save_edit = "ctrl+s"
 | `select_prev` | `k` | 选中上一个 |
 | `new_task` | `n` | 新建任务 |
 | `edit_task` | `l` | 编辑任务 |
+| `edit_title` | `A` | 进入 Title 编辑模式 |
 | `toggle_task` | `x` | 切换完成状态 |
 | `refresh` | `r` | 刷新列表 |
 | `save_edit` | `ctrl+s` | 保存 |

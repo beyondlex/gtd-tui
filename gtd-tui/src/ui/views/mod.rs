@@ -4,8 +4,8 @@ mod someday;
 mod today;
 mod upcoming;
 
-use ratatui::layout::Rect;
 use ratatui::Frame;
+use ratatui::layout::Rect;
 
 use crate::app::{App, View};
 

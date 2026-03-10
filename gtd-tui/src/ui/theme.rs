@@ -22,10 +22,16 @@ impl CalendarTheme {
             .unwrap_or_else(|| Style::default().add_modifier(Modifier::BOLD));
         let weekend = parse_style(config.weekend.as_deref())
             .unwrap_or_else(|| Style::default().fg(Color::Red).add_modifier(Modifier::BOLD));
-        let today = parse_style(config.today.as_deref())
-            .unwrap_or_else(|| Style::default().fg(Color::Green).add_modifier(Modifier::BOLD));
-        let selected = parse_style(config.selected.as_deref())
-            .unwrap_or_else(|| Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD));
+        let today = parse_style(config.today.as_deref()).unwrap_or_else(|| {
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD)
+        });
+        let selected = parse_style(config.selected.as_deref()).unwrap_or_else(|| {
+            Style::default()
+                .fg(Color::Blue)
+                .add_modifier(Modifier::BOLD)
+        });
         let bracket = parse_style(config.bracket.as_deref())
             .unwrap_or_else(|| Style::default().fg(Color::Magenta));
 
@@ -43,9 +49,7 @@ impl Default for CalendarTheme {
     fn default() -> Self {
         Self {
             weekday: Style::default().add_modifier(Modifier::BOLD),
-            weekend: Style::default()
-                .fg(Color::Red)
-                .add_modifier(Modifier::BOLD),
+            weekend: Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
             today: Style::default()
                 .fg(Color::Green)
                 .add_modifier(Modifier::BOLD),

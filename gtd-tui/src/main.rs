@@ -2,22 +2,24 @@ use std::fs;
 use std::io;
 use std::time::Duration;
 
-use anyhow::{anyhow, Result};
-use crossterm::event::{self, Event, KeyCode};
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
+use anyhow::{Result, anyhow};
+use crossterm::event::{self, Event};
 use crossterm::execute;
-use ratatui::backend::CrosstermBackend;
+use crossterm::terminal::{
+    EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
+};
 use ratatui::Terminal;
+use ratatui::backend::CrosstermBackend;
 
 mod app;
 mod config;
 mod ui;
 
 use app::App;
+use app::Keymap;
 use config::{db_path, load};
 use gtd_core::storage::SqliteStorage;
 use ui::theme::{CalendarTheme, EditorTheme};
-use app::Keymap;
 
 struct TerminalGuard;
 

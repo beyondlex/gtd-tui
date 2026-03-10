@@ -1,6 +1,6 @@
+use ratatui::Frame;
 use ratatui::layout::Alignment;
 use ratatui::widgets::{Block, Borders, Paragraph};
-use ratatui::Frame;
 
 pub fn render(frame: &mut Frame, area: ratatui::layout::Rect) {
     let widget = Paragraph::new("Today view (tasks planned for today)")

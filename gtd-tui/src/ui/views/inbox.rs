@@ -1,8 +1,7 @@
+use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
-use ratatui::Frame;
 
 use crate::app::{App, Focus, Layer, Mode};
 
@@ -181,11 +180,7 @@ fn editor_lines(app: &App, editor: &crate::app::EditorState) -> Vec<Line<'static
 }
 
 fn focus_prefix(active: bool) -> &'static str {
-    if active {
-        ">"
-    } else {
-        " "
-    }
+    if active { ">" } else { " " }
 }
 
 fn calendar_lines(

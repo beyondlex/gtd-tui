@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chrono::{Datelike, NaiveDate, Utc};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use gtd_core::models::{ChecklistItem, Task, TaskStatus};
@@ -273,6 +273,12 @@ impl App {
                 }
                 editor.checklist_index = 0;
             }
+        } else if self.keymap.edit_title.matches(key) {
+            if editor.focus == Focus::Title
+                || editor.focus == Focus::Notes
+            {
+                editor.edit_active = true;
+            }
         } else if self.keymap.prev_focus.matches(key) {
             editor.focus = editor.focus.prev();
             if editor.focus == Focus::Checklist {
@@ -359,7 +365,7 @@ impl App {
         };
 
         if editor.edit_active {
-            self.handle_checklist_edit_mode();
+            self.handle_checklist_edit_mode(&key);
             return;
         }
 
@@ -372,6 +378,8 @@ impl App {
                 editor.checklist_index =
                     (editor.checklist_index + 1).min(editor.checklist.len().saturating_sub(1));
             }
+        } else if self.keymap.edit_title.matches(key) {
+            editor.edit_active = true;
         } else if self.keymap.date_edit_mode.matches(key) {
             editor.edit_active = true;
         } else if self.keymap.cancel_edit.matches(key) {
@@ -397,7 +405,6 @@ impl App {
                 } else if key.code == KeyCode::Backspace {
                     editor.title.pop();
                 } else if key.code == KeyCode::Enter {
-                    editor.focus = Focus::Notes;
                     editor.edit_active = false;
                 }
             }
@@ -456,42 +463,12 @@ impl App {
                 }
             }
             Focus::Checklist => {
-                if let KeyCode::Char(ch) = key.code {
-                    if editor.checklist.is_empty() {
-                        editor.checklist.push(ChecklistDraft {
-                            title: String::new(),
-                            checked: false,
-                        });
-                        editor.checklist_index = 0;
-                    }
-                    editor.checklist[editor.checklist_index].title.push(ch);
-                } else if key.code == KeyCode::Backspace {
-                    if !editor.checklist.is_empty() {
-                        let current = &mut editor.checklist[editor.checklist_index];
-                        if current.title.is_empty() {
-                            editor.checklist.remove(editor.checklist_index);
-                            if editor.checklist_index > 0 {
-                                editor.checklist_index -= 1;
-                            }
-                        } else {
-                            current.title.pop();
-                        }
-                    }
-                } else if key.code == KeyCode::Enter {
-                    editor.checklist.insert(
-                        editor.checklist_index + 1,
-                        ChecklistDraft {
-                            title: String::new(),
-                            checked: false,
-                        },
-                    );
-                    editor.checklist_index += 1;
-                }
+                // no op for checklist header
             }
         }
     }
 
-    fn handle_checklist_edit_mode(&mut self) {
+    fn handle_checklist_edit_mode(&mut self, key: &KeyEvent) {
         let editor = match self.editor.as_mut() {
             Some(editor) => editor,
             None => return,
@@ -503,6 +480,38 @@ impl App {
                 checked: false,
             });
             editor.checklist_index = 0;
+        } else {
+            if let KeyCode::Char(ch) = key.code {
+                if editor.checklist.is_empty() {
+                    editor.checklist.push(ChecklistDraft {
+                        title: String::new(),
+                        checked: false,
+                    });
+                    editor.checklist_index = 0;
+                }
+                editor.checklist[editor.checklist_index].title.push(ch);
+            } else if key.code == KeyCode::Backspace {
+                if !editor.checklist.is_empty() {
+                    let current = &mut editor.checklist[editor.checklist_index];
+                    if current.title.is_empty() {
+                        editor.checklist.remove(editor.checklist_index);
+                        if editor.checklist_index > 0 {
+                            editor.checklist_index -= 1;
+                        }
+                    } else {
+                        current.title.pop();
+                    }
+                }
+            } else if key.code == KeyCode::Enter {
+                editor.checklist.insert(
+                    editor.checklist_index + 1,
+                    ChecklistDraft {
+                        title: String::new(),
+                        checked: false,
+                    },
+                );
+                editor.checklist_index += 1;
+            }
         }
     }
 
@@ -735,16 +744,18 @@ pub(crate) fn days_in_month(year: i32, month: u32) -> u32 {
     last.day()
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct KeyBinding {
     pub ctrl: bool,
+    pub shift: bool,
     pub key: char,
 }
 
 impl KeyBinding {
     pub fn matches(&self, event: KeyEvent) -> bool {
-        event.code == KeyCode::Char(self.key)
+        matches!(event.code, KeyCode::Char(ch) if ch.to_ascii_lowercase() == self.key)
             && event.modifiers.contains(KeyModifiers::CONTROL) == self.ctrl
+            && event.modifiers.contains(KeyModifiers::SHIFT) == self.shift
     }
 }
 
@@ -760,6 +771,7 @@ pub struct Keymap {
     pub select_prev: KeyBinding,
     pub new_task: KeyBinding,
     pub edit_task: KeyBinding,
+    pub edit_title: KeyBinding,
     pub toggle_task: KeyBinding,
     pub refresh: KeyBinding,
     pub save_edit: KeyBinding,
@@ -789,130 +801,167 @@ impl Keymap {
         Self {
             quit: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: 'q',
             },
             view_inbox: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: '1',
             },
             view_today: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: '2',
             },
             view_upcoming: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: '3',
             },
             view_anytime: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: '4',
             },
             view_someday: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: '5',
             },
             select_next: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: 'j',
             },
             select_prev: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: 'k',
             },
             new_task: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: 'n',
             },
             edit_task: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: 'l',
+            },
+            edit_title: KeyBinding {
+                ctrl: false,
+                shift: true,
+                key: 'a',
             },
             toggle_task: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: 'x',
             },
             refresh: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: 'r',
             },
             save_edit: KeyBinding {
                 ctrl: true,
+                shift: false,
                 key: 's',
             },
             cancel_edit: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: 'q',
             },
             next_focus: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: 'j',
             },
             prev_focus: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: 'k',
             },
             checklist_edit_toggle: KeyBinding {
                 ctrl: true,
+                shift: false,
                 key: 'e',
             },
             date_prev_day: KeyBinding {
                 ctrl: true,
+                shift: false,
                 key: 'h',
             },
             date_next_day: KeyBinding {
                 ctrl: true,
+                shift: false,
                 key: 'l',
             },
             date_prev_day_in_edit_mode: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: 'h',
             },
             date_next_day_in_edit_mode: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: 'l',
             },
             date_prev_week: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: 'k',
             },
             date_next_week: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: 'j',
             },
             date_edit_mode: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: 'l',
             },
             date_prev_month: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: 'p',
             },
             date_next_month: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: 'n',
             },
             date_today: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: 't',
             },
             date_tomorrow: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: 'm',
             },
             checklist_toggle: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: 'x',
             },
             checklist_add: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: 'l',
             },
             checklist_next: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: 'j',
             },
             checklist_prev: KeyBinding {
                 ctrl: false,
+                shift: false,
                 key: 'k',
             },
         }
@@ -971,6 +1020,11 @@ impl Keymap {
                 .as_deref()
                 .and_then(parse_key_binding)
                 .unwrap_or(default.edit_task),
+            edit_title: config
+                .edit_title
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.edit_title),
             toggle_task: config
                 .toggle_task
                 .as_deref()
@@ -1085,18 +1139,108 @@ impl Keymap {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ui::theme::{CalendarTheme, EditorTheme};
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use gtd_core::storage::Storage;
+
+    fn test_app() -> App {
+        let db_path = std::env::temp_dir().join(format!("gtd-tui-{}.db", Uuid::new_v4()));
+        let storage = SqliteStorage::new(&db_path).expect("sqlite storage");
+        App::new(
+            storage,
+            CalendarTheme::default(),
+            EditorTheme::default(),
+            Keymap::default_keymap(),
+        )
+        .expect("app")
+    }
+
+    #[test]
+    fn parses_uppercase_binding_as_shifted_key() {
+        let binding = parse_key_binding("A").expect("binding");
+
+        assert_eq!(
+            binding,
+            KeyBinding {
+                ctrl: false,
+                shift: true,
+                key: 'a',
+            }
+        );
+    }
+
+    #[test]
+    fn edit_title_shortcut_enters_title_mode_and_enter_finishes_it() {
+        let mut app = test_app();
+        let now = Utc::now();
+        let task = Task {
+            id: Uuid::new_v4(),
+            project_id: None,
+            heading_id: None,
+            area_id: None,
+            title: "Task".to_string(),
+            notes: Some("notes".to_string()),
+            status: TaskStatus::Pending,
+            start_date: None,
+            due_date: None,
+            is_today: false,
+            is_someday: false,
+            sort_order: 0,
+            created_at: now,
+            updated_at: now,
+        };
+        app.storage.create_task(&task).expect("task");
+        app.refresh_tasks().expect("refresh");
+        app.start_edit_task().expect("edit");
+
+        let editor = app.editor.as_mut().expect("editor");
+        editor.focus = Focus::Notes;
+        editor.edit_active = false;
+
+        app.on_key(KeyEvent::new(KeyCode::Char('A'), KeyModifiers::SHIFT))
+            .expect("title edit mode");
+        let editor = app.editor.as_ref().expect("editor");
+        assert_eq!(editor.focus, Focus::Title);
+        assert!(editor.edit_active);
+
+        app.on_key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE))
+            .expect("append char");
+        let editor = app.editor.as_ref().expect("editor");
+        assert_eq!(editor.title, "Taskx");
+
+        app.on_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))
+            .expect("finish title edit");
+        let editor = app.editor.as_ref().expect("editor");
+        assert_eq!(editor.focus, Focus::Title);
+        assert!(!editor.edit_active);
+    }
+}
+
 fn parse_key_binding(value: &str) -> Option<KeyBinding> {
     let mut ctrl = false;
+    let mut shift = false;
     let mut key: Option<char> = None;
     for part in value.split('+') {
-        let token = part.trim().to_lowercase();
-        if token == "ctrl" || token == "control" {
+        let token = part.trim();
+        let lowered = token.to_lowercase();
+        if lowered == "ctrl" || lowered == "control" {
             ctrl = true;
             continue;
         }
+        if lowered == "shift" {
+            shift = true;
+            continue;
+        }
         if token.chars().count() == 1 {
-            key = token.chars().next();
+            let ch = token.chars().next()?;
+            if ch.is_ascii_uppercase() {
+                shift = true;
+            }
+            key = Some(ch.to_ascii_lowercase());
         }
     }
-    key.map(|key| KeyBinding { ctrl, key })
+    key.map(|key| KeyBinding { ctrl, shift, key })
 }

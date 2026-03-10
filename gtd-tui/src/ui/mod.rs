@@ -2,10 +2,10 @@ mod layout;
 pub mod theme;
 mod views;
 
+use ratatui::Frame;
 use ratatui::layout::Alignment;
 use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
-use ratatui::Frame;
 
 use crate::app::{App, Mode, View};
 

@@ -2,9 +2,7 @@ mod sqlite;
 
 use uuid::Uuid;
 
-use crate::models::{
-    Area, ChecklistItem, HotkeyConfig, Project, Tag, Task, TaskStatus,
-};
+use crate::models::{Area, ChecklistItem, HotkeyConfig, Project, Tag, Task, TaskStatus};
 
 pub type StorageResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 

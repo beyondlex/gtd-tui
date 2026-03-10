@@ -12,6 +12,7 @@ pub enum Action {
     GotoProject { project_id: Uuid },
     NewTask,
     EditTask,
+    EditTitle,
     DeleteTask,
     ToggleComplete,
     MoveToToday,

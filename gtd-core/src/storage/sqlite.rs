@@ -4,7 +4,7 @@ use std::sync::Mutex;
 
 use chrono::{DateTime, NaiveDate, Utc};
 use rusqlite::types::{Type, Value};
-use rusqlite::{params, params_from_iter, Connection};
+use rusqlite::{Connection, params, params_from_iter};
 use uuid::Uuid;
 
 use crate::models::{
@@ -128,7 +128,10 @@ impl SqliteStorage {
 
 impl Storage for SqliteStorage {
     fn get_areas(&self) -> StorageResult<Vec<Area>> {
-        let conn = self.conn.lock().map_err(|_| "sqlite connection lock poisoned")?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| "sqlite connection lock poisoned")?;
         let mut stmt = conn.prepare(
             "SELECT id, name, color, sort_order, created_at, updated_at FROM areas ORDER BY sort_order, name",
         )?;
@@ -142,10 +145,8 @@ impl Storage for SqliteStorage {
                 name: row.get(1)?,
                 color: row.get(2)?,
                 sort_order: row.get(3)?,
-                created_at: parse_datetime(&created_at)
-                    .map_err(|err| map_parse_err(4, err))?,
-                updated_at: parse_datetime(&updated_at)
-                    .map_err(|err| map_parse_err(5, err))?,
+                created_at: parse_datetime(&created_at).map_err(|err| map_parse_err(4, err))?,
+                updated_at: parse_datetime(&updated_at).map_err(|err| map_parse_err(5, err))?,
             })
         })?;
 
@@ -153,7 +154,10 @@ impl Storage for SqliteStorage {
     }
 
     fn create_area(&self, area: &Area) -> StorageResult<()> {
-        let conn = self.conn.lock().map_err(|_| "sqlite connection lock poisoned")?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| "sqlite connection lock poisoned")?;
         conn.execute(
             "INSERT INTO areas (id, name, color, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
             params![
@@ -169,7 +173,10 @@ impl Storage for SqliteStorage {
     }
 
     fn update_area(&self, area: &Area) -> StorageResult<()> {
-        let conn = self.conn.lock().map_err(|_| "sqlite connection lock poisoned")?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| "sqlite connection lock poisoned")?;
         conn.execute(
             "UPDATE areas SET name = ?, color = ?, sort_order = ?, updated_at = ? WHERE id = ?",
             params![
@@ -184,13 +191,19 @@ impl Storage for SqliteStorage {
     }
 
     fn delete_area(&self, id: Uuid) -> StorageResult<()> {
-        let conn = self.conn.lock().map_err(|_| "sqlite connection lock poisoned")?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| "sqlite connection lock poisoned")?;
         conn.execute("DELETE FROM areas WHERE id = ?", params![id.to_string()])?;
         Ok(())
     }
 
     fn get_projects(&self, area_id: Option<Uuid>) -> StorageResult<Vec<Project>> {
-        let conn = self.conn.lock().map_err(|_| "sqlite connection lock poisoned")?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| "sqlite connection lock poisoned")?;
         let (sql, params) = if let Some(area_id) = area_id {
             (
                 "SELECT id, area_id, title, notes, status, start_date, due_date, sort_order, created_at, updated_at FROM projects WHERE area_id = ? ORDER BY sort_order, title",
@@ -217,15 +230,12 @@ impl Storage for SqliteStorage {
                 area_id: parse_uuid_opt(row.get(1)?).map_err(|err| map_parse_err(1, err))?,
                 title: row.get(2)?,
                 notes: row.get(3)?,
-                status: parse_project_status(&status)
-                    .map_err(|err| map_parse_err(4, err))?,
+                status: parse_project_status(&status).map_err(|err| map_parse_err(4, err))?,
                 start_date: parse_date_opt(start_date).map_err(|err| map_parse_err(5, err))?,
                 due_date: parse_date_opt(due_date).map_err(|err| map_parse_err(6, err))?,
                 sort_order: row.get(7)?,
-                created_at: parse_datetime(&created_at)
-                    .map_err(|err| map_parse_err(8, err))?,
-                updated_at: parse_datetime(&updated_at)
-                    .map_err(|err| map_parse_err(9, err))?,
+                created_at: parse_datetime(&created_at).map_err(|err| map_parse_err(8, err))?,
+                updated_at: parse_datetime(&updated_at).map_err(|err| map_parse_err(9, err))?,
             })
         })?;
 
@@ -233,7 +243,10 @@ impl Storage for SqliteStorage {
     }
 
     fn create_project(&self, project: &Project) -> StorageResult<()> {
-        let conn = self.conn.lock().map_err(|_| "sqlite connection lock poisoned")?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| "sqlite connection lock poisoned")?;
         conn.execute(
             "INSERT INTO projects (id, area_id, title, notes, status, start_date, due_date, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             params![
@@ -253,7 +266,10 @@ impl Storage for SqliteStorage {
     }
 
     fn update_project(&self, project: &Project) -> StorageResult<()> {
-        let conn = self.conn.lock().map_err(|_| "sqlite connection lock poisoned")?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| "sqlite connection lock poisoned")?;
         conn.execute(
             "UPDATE projects SET area_id = ?, title = ?, notes = ?, status = ?, start_date = ?, due_date = ?, sort_order = ?, updated_at = ? WHERE id = ?",
             params![
@@ -272,13 +288,19 @@ impl Storage for SqliteStorage {
     }
 
     fn delete_project(&self, id: Uuid) -> StorageResult<()> {
-        let conn = self.conn.lock().map_err(|_| "sqlite connection lock poisoned")?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| "sqlite connection lock poisoned")?;
         conn.execute("DELETE FROM projects WHERE id = ?", params![id.to_string()])?;
         Ok(())
     }
 
     fn get_tasks(&self, filter: TaskFilter) -> StorageResult<Vec<Task>> {
-        let conn = self.conn.lock().map_err(|_| "sqlite connection lock poisoned")?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| "sqlite connection lock poisoned")?;
         let mut sql = String::from(
             "SELECT id, project_id, heading_id, area_id, title, notes, status, start_date, due_date, is_today, is_someday, sort_order, created_at, updated_at FROM tasks",
         );
@@ -334,10 +356,8 @@ impl Storage for SqliteStorage {
                 is_today: i32_to_bool(row.get(9)?),
                 is_someday: i32_to_bool(row.get(10)?),
                 sort_order: row.get(11)?,
-                created_at: parse_datetime(&created_at)
-                    .map_err(|err| map_parse_err(12, err))?,
-                updated_at: parse_datetime(&updated_at)
-                    .map_err(|err| map_parse_err(13, err))?,
+                created_at: parse_datetime(&created_at).map_err(|err| map_parse_err(12, err))?,
+                updated_at: parse_datetime(&updated_at).map_err(|err| map_parse_err(13, err))?,
             })
         })?;
 
@@ -345,7 +365,10 @@ impl Storage for SqliteStorage {
     }
 
     fn create_task(&self, task: &Task) -> StorageResult<()> {
-        let conn = self.conn.lock().map_err(|_| "sqlite connection lock poisoned")?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| "sqlite connection lock poisoned")?;
         conn.execute(
             "INSERT INTO tasks (id, project_id, heading_id, area_id, title, notes, status, start_date, due_date, is_today, is_someday, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             params![
@@ -369,7 +392,10 @@ impl Storage for SqliteStorage {
     }
 
     fn update_task(&self, task: &Task) -> StorageResult<()> {
-        let conn = self.conn.lock().map_err(|_| "sqlite connection lock poisoned")?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| "sqlite connection lock poisoned")?;
         conn.execute(
             "UPDATE tasks SET project_id = ?, heading_id = ?, area_id = ?, title = ?, notes = ?, status = ?, start_date = ?, due_date = ?, is_today = ?, is_someday = ?, sort_order = ?, updated_at = ? WHERE id = ?",
             params![
@@ -392,13 +418,19 @@ impl Storage for SqliteStorage {
     }
 
     fn delete_task(&self, id: Uuid) -> StorageResult<()> {
-        let conn = self.conn.lock().map_err(|_| "sqlite connection lock poisoned")?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| "sqlite connection lock poisoned")?;
         conn.execute("DELETE FROM tasks WHERE id = ?", params![id.to_string()])?;
         Ok(())
     }
 
     fn get_tags(&self) -> StorageResult<Vec<Tag>> {
-        let conn = self.conn.lock().map_err(|_| "sqlite connection lock poisoned")?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| "sqlite connection lock poisoned")?;
         let mut stmt = conn.prepare("SELECT id, name, color FROM tags ORDER BY name")?;
         let rows = stmt.query_map([], |row| {
             let id: String = row.get(0)?;
@@ -413,7 +445,10 @@ impl Storage for SqliteStorage {
     }
 
     fn create_tag(&self, tag: &Tag) -> StorageResult<()> {
-        let conn = self.conn.lock().map_err(|_| "sqlite connection lock poisoned")?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| "sqlite connection lock poisoned")?;
         conn.execute(
             "INSERT INTO tags (id, name, color) VALUES (?, ?, ?)",
             params![tag.id.to_string(), tag.name, tag.color],
@@ -422,13 +457,19 @@ impl Storage for SqliteStorage {
     }
 
     fn delete_tag(&self, id: Uuid) -> StorageResult<()> {
-        let conn = self.conn.lock().map_err(|_| "sqlite connection lock poisoned")?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| "sqlite connection lock poisoned")?;
         conn.execute("DELETE FROM tags WHERE id = ?", params![id.to_string()])?;
         Ok(())
     }
 
     fn get_checklist(&self, task_id: Uuid) -> StorageResult<Vec<ChecklistItem>> {
-        let conn = self.conn.lock().map_err(|_| "sqlite connection lock poisoned")?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| "sqlite connection lock poisoned")?;
         let mut stmt = conn.prepare(
             "SELECT id, task_id, title, is_checked, sort_order FROM checklist_items WHERE task_id = ? ORDER BY sort_order",
         )?;
@@ -449,7 +490,10 @@ impl Storage for SqliteStorage {
     }
 
     fn create_checklist_item(&self, item: &ChecklistItem) -> StorageResult<()> {
-        let conn = self.conn.lock().map_err(|_| "sqlite connection lock poisoned")?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| "sqlite connection lock poisoned")?;
         conn.execute(
             "INSERT INTO checklist_items (id, task_id, title, is_checked, sort_order) VALUES (?, ?, ?, ?, ?)",
             params![
@@ -464,7 +508,10 @@ impl Storage for SqliteStorage {
     }
 
     fn update_checklist_item(&self, item: &ChecklistItem) -> StorageResult<()> {
-        let conn = self.conn.lock().map_err(|_| "sqlite connection lock poisoned")?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| "sqlite connection lock poisoned")?;
         conn.execute(
             "UPDATE checklist_items SET title = ?, is_checked = ?, sort_order = ? WHERE id = ?",
             params![
@@ -478,7 +525,10 @@ impl Storage for SqliteStorage {
     }
 
     fn delete_checklist_item(&self, id: Uuid) -> StorageResult<()> {
-        let conn = self.conn.lock().map_err(|_| "sqlite connection lock poisoned")?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| "sqlite connection lock poisoned")?;
         conn.execute(
             "DELETE FROM checklist_items WHERE id = ?",
             params![id.to_string()],
@@ -487,13 +537,17 @@ impl Storage for SqliteStorage {
     }
 
     fn get_hotkeys(&self) -> StorageResult<Vec<HotkeyConfig>> {
-        let conn = self.conn.lock().map_err(|_| "sqlite connection lock poisoned")?;
-        let mut stmt = conn.prepare("SELECT id, action, key, modifiers FROM hotkey_config ORDER BY action")?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| "sqlite connection lock poisoned")?;
+        let mut stmt =
+            conn.prepare("SELECT id, action, key, modifiers FROM hotkey_config ORDER BY action")?;
         let rows = stmt.query_map([], |row| {
             let id: String = row.get(0)?;
             let modifiers: String = row.get(3)?;
-            let modifiers: Vec<String> = serde_json::from_str(&modifiers)
-                .map_err(|err| map_parse_err(3, Box::new(err)))?;
+            let modifiers: Vec<String> =
+                serde_json::from_str(&modifiers).map_err(|err| map_parse_err(3, Box::new(err)))?;
 
             Ok(HotkeyConfig {
                 id: parse_uuid(&id).map_err(|err| map_parse_err(0, err))?,
@@ -507,17 +561,15 @@ impl Storage for SqliteStorage {
     }
 
     fn save_hotkey(&self, config: &HotkeyConfig) -> StorageResult<()> {
-        let conn = self.conn.lock().map_err(|_| "sqlite connection lock poisoned")?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| "sqlite connection lock poisoned")?;
         let modifiers = serde_json::to_string(&config.modifiers)?;
         conn.execute(
             "INSERT INTO hotkey_config (id, action, key, modifiers) VALUES (?, ?, ?, ?)
              ON CONFLICT(action) DO UPDATE SET key = excluded.key, modifiers = excluded.modifiers",
-            params![
-                config.id.to_string(),
-                config.action,
-                config.key,
-                modifiers,
-            ],
+            params![config.id.to_string(), config.action, config.key, modifiers,],
         )?;
         Ok(())
     }
