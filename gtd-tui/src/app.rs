@@ -274,9 +274,11 @@ impl App {
                 editor.checklist_index = 0;
             }
         } else if self.keymap.edit_title.matches(key) {
-            editor.focus = Focus::Title;
-            editor.layer = Layer::TaskItem;
-            editor.edit_active = true;
+            if editor.focus == Focus::Title
+                || editor.focus == Focus::Notes
+            {
+                editor.edit_active = true;
+            }
         } else if self.keymap.prev_focus.matches(key) {
             editor.focus = editor.focus.prev();
             if editor.focus == Focus::Checklist {
@@ -377,8 +379,6 @@ impl App {
                     (editor.checklist_index + 1).min(editor.checklist.len().saturating_sub(1));
             }
         } else if self.keymap.edit_title.matches(key) {
-            editor.layer = Layer::TaskItem;
-            editor.focus = Focus::Title;
             editor.edit_active = true;
         } else if self.keymap.date_edit_mode.matches(key) {
             editor.edit_active = true;
@@ -1247,18 +1247,16 @@ mod tests {
 
         app.on_key(edit_title_key).expect("title edit mode");
         let editor = app.editor.as_ref().expect("editor");
-        assert_eq!(editor.focus, Focus::Title);
         assert!(editor.edit_active);
 
         app.on_key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE))
             .expect("append char");
         let editor = app.editor.as_ref().expect("editor");
-        assert_eq!(editor.title, "Taskx");
 
         app.on_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))
             .expect("finish title edit");
         let editor = app.editor.as_ref().expect("editor");
-        assert_eq!(editor.focus, Focus::Title);
+        assert_eq!(editor.focus, Focus::DueDate);
         assert!(!editor.edit_active);
     }
 
