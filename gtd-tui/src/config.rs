@@ -79,6 +79,8 @@ pub struct KeysConfig {
     pub checklist_prev: Option<String>,
     pub new_item_above: Option<String>,
     pub new_item_below: Option<String>,
+    pub move_item_up: Option<String>,
+    pub move_item_down: Option<String>,
 }
 
 pub fn db_path() -> Result<PathBuf> {

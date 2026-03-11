@@ -238,6 +238,10 @@ impl App {
             let insert_after = self.selected.saturating_sub(1);
             let insert_at_beginning = self.selected == 0;
             self.start_new_task_at(insert_after, insert_at_beginning);
+        } else if self.keymap.move_item_down.matches(key) {
+            self.move_task_down()?;
+        } else if self.keymap.move_item_up.matches(key) {
+            self.move_task_up()?;
         }
 
         Ok(())
@@ -464,6 +468,20 @@ impl App {
                 },
             );
             editor.edit_active = true;
+        } else if self.keymap.move_item_down.matches(key) {
+            if editor.checklist_index < editor.checklist.len() - 1 {
+                editor
+                    .checklist
+                    .swap(editor.checklist_index, editor.checklist_index + 1);
+                editor.checklist_index += 1;
+            }
+        } else if self.keymap.move_item_up.matches(key) {
+            if editor.checklist_index > 0 {
+                editor
+                    .checklist
+                    .swap(editor.checklist_index, editor.checklist_index - 1);
+                editor.checklist_index -= 1;
+            }
         }
     }
 
@@ -813,6 +831,44 @@ impl App {
         Ok(())
     }
 
+    fn move_task_down(&mut self) -> Result<()> {
+        if self.tasks.is_empty() || self.selected >= self.tasks.len() - 1 {
+            return Ok(());
+        }
+        let idx = self.selected;
+        let mut task1 = self.tasks[idx].clone();
+        let mut task2 = self.tasks[idx + 1].clone();
+        let temp_order = task1.sort_order;
+        task1.sort_order = task2.sort_order;
+        task2.sort_order = temp_order;
+        task1.updated_at = Utc::now();
+        task2.updated_at = Utc::now();
+        self.storage.update_task(&task1).map_err(|e| anyhow!(e))?;
+        self.storage.update_task(&task2).map_err(|e| anyhow!(e))?;
+        self.selected += 1;
+        self.refresh_tasks()?;
+        Ok(())
+    }
+
+    fn move_task_up(&mut self) -> Result<()> {
+        if self.tasks.is_empty() || self.selected == 0 {
+            return Ok(());
+        }
+        let idx = self.selected;
+        let mut task1 = self.tasks[idx].clone();
+        let mut task2 = self.tasks[idx - 1].clone();
+        let temp_order = task1.sort_order;
+        task1.sort_order = task2.sort_order;
+        task2.sort_order = temp_order;
+        task1.updated_at = Utc::now();
+        task2.updated_at = Utc::now();
+        self.storage.update_task(&task1).map_err(|e| anyhow!(e))?;
+        self.storage.update_task(&task2).map_err(|e| anyhow!(e))?;
+        self.selected -= 1;
+        self.refresh_tasks()?;
+        Ok(())
+    }
+
     fn on_key_confirm_delete(&mut self, key: KeyEvent) -> Result<()> {
         if key.code == KeyCode::Char('y') || key.code == KeyCode::Enter {
             self.confirm_delete()?;
@@ -964,6 +1020,8 @@ pub struct Keymap {
     pub date_tomorrow: KeyBinding,
     pub new_item_above: KeyBinding,
     pub new_item_below: KeyBinding,
+    pub move_item_up: KeyBinding,
+    pub move_item_down: KeyBinding,
     pub checklist_toggle: KeyBinding,
     pub checklist_add: KeyBinding,
     pub checklist_next: KeyBinding,
@@ -1123,6 +1181,16 @@ impl Keymap {
                 shift: false,
                 key: 'o',
             },
+            move_item_up: KeyBinding {
+                ctrl: false,
+                shift: true,
+                key: 'k',
+            },
+            move_item_down: KeyBinding {
+                ctrl: false,
+                shift: true,
+                key: 'j',
+            },
             checklist_toggle: KeyBinding {
                 ctrl: false,
                 shift: false,
@@ -1234,6 +1302,16 @@ impl Keymap {
                 .as_deref()
                 .and_then(parse_key_binding)
                 .unwrap_or(default.new_item_below),
+            move_item_up: config
+                .move_item_up
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.move_item_up),
+            move_item_down: config
+                .move_item_down
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.move_item_down),
             prev_focus: config
                 .prev_focus
                 .as_deref()
