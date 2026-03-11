@@ -41,6 +41,13 @@ impl View {
 pub enum Mode {
     Normal,
     Editing,
+    ConfirmDelete,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeleteTarget {
+    Task,
+    ChecklistItem,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -149,6 +156,7 @@ pub struct App {
     pub editor_theme: EditorTheme,
     pub keymap: Keymap,
     pub cursor_visible: bool,
+    pub delete_confirm: Option<DeleteTarget>,
     last_blink: Instant,
     storage: SqliteStorage,
 }
@@ -171,6 +179,7 @@ impl App {
             editor_theme,
             keymap,
             cursor_visible: true,
+            delete_confirm: None,
             last_blink: Instant::now(),
             storage,
         };
@@ -182,6 +191,7 @@ impl App {
         match self.mode {
             Mode::Normal => self.on_key_normal(key),
             Mode::Editing => self.on_key_edit(key),
+            Mode::ConfirmDelete => self.on_key_confirm_delete(key),
         }
     }
 
@@ -218,6 +228,9 @@ impl App {
             self.toggle_selected_task()?;
         } else if self.keymap.refresh.matches(key) {
             self.refresh_tasks()?;
+        } else if key.code == KeyCode::Char('d') && !self.tasks.is_empty() {
+            self.mode = Mode::ConfirmDelete;
+            self.delete_confirm = Some(DeleteTarget::Task);
         }
         Ok(())
     }
@@ -241,6 +254,12 @@ impl App {
             } else {
                 self.cancel_edit();
             }
+            return Ok(());
+        }
+
+        if key.code == KeyCode::Char('d') && editor.layer == Layer::ChecklistItem {
+            self.mode = Mode::ConfirmDelete;
+            self.delete_confirm = Some(DeleteTarget::ChecklistItem);
             return Ok(());
         }
 
@@ -719,6 +738,57 @@ impl App {
         task.updated_at = Utc::now();
         self.storage.update_task(&task).map_err(|e| anyhow!(e))?;
         self.refresh_tasks()?;
+        Ok(())
+    }
+
+    fn on_key_confirm_delete(&mut self, key: KeyEvent) -> Result<()> {
+        if key.code == KeyCode::Char('y') || key.code == KeyCode::Enter {
+            self.confirm_delete()?;
+        }
+
+        match self.delete_confirm {
+            Some(DeleteTarget::ChecklistItem) => {
+                self.mode = Mode::Editing;
+            }
+            _ => {
+                self.mode = Mode::Normal;
+            }
+        }
+        self.delete_confirm = None;
+        Ok(())
+    }
+
+    fn confirm_delete(&mut self) -> Result<()> {
+        match self.delete_confirm {
+            Some(DeleteTarget::Task) => {
+                if self.tasks.is_empty() {
+                    return Ok(());
+                }
+                let task = &self.tasks[self.selected];
+                self.storage.delete_task(task.id).map_err(|e| anyhow!(e))?;
+                if self.selected >= self.tasks.len().saturating_sub(1) {
+                    self.selected = self.selected.saturating_sub(1);
+                }
+                self.refresh_tasks()?;
+            }
+            Some(DeleteTarget::ChecklistItem) => {
+                if let Some(editor) = &mut self.editor {
+                    let deleted_index = editor.checklist_index;
+                    if deleted_index < editor.checklist.len() {
+                        editor.checklist.remove(deleted_index);
+                        if editor.checklist.is_empty() {
+                            editor.layer = Layer::TaskItem;
+                            editor.focus = Focus::Checklist;
+                            editor.checklist_index = 0;
+                        } else if deleted_index < editor.checklist.len() {
+                        } else if !editor.checklist.is_empty() {
+                            editor.checklist_index = editor.checklist.len() - 1;
+                        }
+                    }
+                }
+            }
+            None => {}
+        }
         Ok(())
     }
 
