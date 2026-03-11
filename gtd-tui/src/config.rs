@@ -36,6 +36,7 @@ pub struct CalendarThemeConfig {
 pub struct EditorThemeConfig {
     pub checklist_edit: Option<String>,
     pub task_selected: Option<String>,
+    pub date_label: Option<String>,
     pub checklist_item_selected: Option<String>,
     pub field_title: Option<String>,
     pub field_notes: Option<String>,

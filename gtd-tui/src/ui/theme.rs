@@ -15,6 +15,7 @@ pub struct CalendarTheme {
 pub struct EditorTheme {
     pub checklist_edit: Style,
     pub task_selected: Style,
+    pub date_label: Style,
     pub checklist_item_selected: Style,
     pub field_title: Style,
     pub field_notes: Style,
@@ -79,6 +80,11 @@ impl EditorTheme {
                 .fg(Color::Blue)
                 .add_modifier(Modifier::BOLD)
         });
+        let date_label = parse_style(config.date_label.as_deref()).unwrap_or_else(|| {
+            Style::default()
+                .fg(Color::DarkGray)
+                .add_modifier(Modifier::BOLD)
+        });
         let checklist_item_selected = parse_style(config.checklist_item_selected.as_deref())
             .unwrap_or_else(|| {
                 Style::default()
@@ -108,6 +114,7 @@ impl EditorTheme {
         Self {
             checklist_edit,
             task_selected,
+            date_label,
             checklist_item_selected,
             field_title,
             field_notes,
@@ -125,6 +132,9 @@ impl Default for EditorTheme {
                 .add_modifier(Modifier::BOLD),
             task_selected: Style::default()
                 .fg(Color::Blue)
+                .add_modifier(Modifier::BOLD),
+            date_label: Style::default()
+                .fg(Color::DarkGray)
                 .add_modifier(Modifier::BOLD),
             checklist_item_selected: Style::default()
                 .fg(Color::Blue)

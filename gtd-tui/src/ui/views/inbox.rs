@@ -26,7 +26,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
         };
         let due = task
             .due_date
-            .map(|d| format!(" ({})", d.format("%Y-%m-%d")))
+            .map(|d| format!(" {}", d.format("%m-%d")))
             .unwrap_or_default();
         let prefix = if selected { ">" } else { " " };
 
@@ -37,10 +37,17 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
                 Span::raw(status),
                 Span::raw(" "),
                 Span::styled(&task.title, app.editor_theme.task_selected),
-                Span::raw(due),
+                Span::styled(due, app.editor_theme.date_label),
             ]));
         } else {
-            lines.push(Line::from(format!("{prefix} {status} {}{due}", task.title)));
+            lines.push(Line::from(vec![
+                Span::raw(prefix),
+                Span::raw(" "),
+                Span::raw(status),
+                Span::raw(" "),
+                Span::raw(&task.title),
+                Span::styled(due, app.editor_theme.date_label),
+            ]));
         }
 
         if let Some(editor) = &app.editor {
@@ -101,11 +108,11 @@ fn editor_lines<'a>(app: &'a App, editor: &'a crate::app::EditorState) -> Vec<Li
     let checklist_prefix = focus_prefix(editor.focus == Focus::Checklist);
 
     let due_label = if editor.focus == Focus::DueDate && editor.edit_active {
-        editor.date_picker.cursor.format("%Y-%m-%d").to_string()
+        editor.date_picker.cursor.format("%m-%d").to_string()
     } else {
         editor
             .due_date
-            .map(|d| d.format("%Y-%m-%d").to_string())
+            .map(|d| d.format("%m-%d").to_string())
             .unwrap_or_else(|| "(none)".to_string())
     };
 
