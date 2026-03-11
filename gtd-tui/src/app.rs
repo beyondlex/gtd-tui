@@ -245,7 +245,8 @@ impl App {
             None => return Ok(()),
         };
 
-        if key.code == KeyCode::Esc || self.keymap.cancel_edit.matches(key) {
+        if key.code == KeyCode::Esc {
+
             if editor.edit_active {
                 editor.edit_active = false;
             } else if editor.layer == Layer::ChecklistItem {
@@ -257,10 +258,25 @@ impl App {
             return Ok(());
         }
 
-        if key.code == KeyCode::Char('d') && editor.layer == Layer::ChecklistItem {
+        if key.code == KeyCode::Char('d')
+            && !editor.edit_active
+            && editor.layer == Layer::ChecklistItem {
+
             self.mode = Mode::ConfirmDelete;
             self.delete_confirm = Some(DeleteTarget::ChecklistItem);
             return Ok(());
+        }
+
+        if self.keymap.nav_up.matches(key) { // go up
+            if !editor.edit_active && editor.layer == Layer::ChecklistItem  {
+                // go up: focus on task.property(Title, Notes, Due, Checklist) from checklist.item
+                editor.layer = Layer::TaskItem;
+                editor.checklist_index = 0;
+            } else if editor.layer != Layer::ChecklistItem {
+                // focus on task.item from task.property
+                self.cancel_edit();
+                return Ok(());
+            }
         }
 
         match editor.layer {
@@ -368,6 +384,26 @@ impl App {
             let tomorrow = Utc::now().date_naive() + chrono::Duration::days(1);
             editor.due_date = Some(tomorrow);
             editor.date_picker.cursor = tomorrow;
+        } else if key.code == KeyCode::Char('o') && editor.focus == Focus::Checklist {
+            let shift_pressed = key.modifiers.contains(KeyModifiers::SHIFT);
+            if shift_pressed {
+                editor.checklist.insert(
+                    0,
+                    ChecklistDraft {
+                        title: String::new(),
+                        checked: false,
+                    },
+                );
+                editor.checklist_index = 0;
+            } else {
+                editor.checklist.push(ChecklistDraft {
+                    title: String::new(),
+                    checked: false,
+                });
+                editor.checklist_index = editor.checklist.len() - 1;
+            }
+            editor.layer = Layer::ChecklistItem;
+            editor.edit_active = true;
         }
     }
 
@@ -393,13 +429,34 @@ impl App {
             }
         } else if self.keymap.date_edit_mode.matches(key) {
             editor.edit_active = true;
-        } else if self.keymap.cancel_edit.matches(key) {
+        } else if self.keymap.nav_up.matches(key) && !editor.edit_active {
             editor.layer = Layer::TaskItem;
             editor.checklist_index = 0;
         } else if self.keymap.checklist_toggle.matches(key) {
             if let Some(item) = editor.checklist.get_mut(editor.checklist_index) {
                 item.checked = !item.checked;
             }
+        } else if self.keymap.new_item_below.matches(key) {
+            // let shift_pressed = key.modifiers.contains(KeyModifiers::SHIFT);
+            editor.checklist.insert(
+                editor.checklist_index + 1,
+                ChecklistDraft {
+                    title: String::new(),
+                    checked: false,
+                },
+            );
+            editor.checklist_index += 1;
+            editor.edit_active = true;
+
+        } else if self.keymap.new_item_above.matches(key) {
+            editor.checklist.insert(
+                editor.checklist_index,
+                ChecklistDraft {
+                    title: String::new(),
+                    checked: false,
+                },
+            );
+            editor.edit_active = true;
         }
     }
 
@@ -875,7 +932,7 @@ pub struct Keymap {
     pub toggle_task: KeyBinding,
     pub refresh: KeyBinding,
     pub save_edit: KeyBinding,
-    pub cancel_edit: KeyBinding,
+    pub nav_up: KeyBinding,
     pub next_focus: KeyBinding,
     pub prev_focus: KeyBinding,
     pub checklist_edit_toggle: KeyBinding,
@@ -890,6 +947,8 @@ pub struct Keymap {
     pub date_next_month: KeyBinding,
     pub date_today: KeyBinding,
     pub date_tomorrow: KeyBinding,
+    pub new_item_above: KeyBinding,
+    pub new_item_below: KeyBinding,
     pub checklist_toggle: KeyBinding,
     pub checklist_add: KeyBinding,
     pub checklist_next: KeyBinding,
@@ -964,7 +1023,7 @@ impl Keymap {
                 shift: false,
                 key: 's',
             },
-            cancel_edit: KeyBinding {
+            nav_up: KeyBinding {
                 ctrl: false,
                 shift: false,
                 key: 'q',
@@ -1038,6 +1097,16 @@ impl Keymap {
                 ctrl: false,
                 shift: false,
                 key: 'm',
+            },
+            new_item_above: KeyBinding {
+                ctrl: false,
+                shift: true,
+                key: 'o',
+            },
+            new_item_below: KeyBinding {
+                ctrl: false,
+                shift: false,
+                key: 'o',
             },
             checklist_toggle: KeyBinding {
                 ctrl: false,
@@ -1130,16 +1199,26 @@ impl Keymap {
                 .as_deref()
                 .and_then(parse_key_binding)
                 .unwrap_or(default.save_edit),
-            cancel_edit: config
+            nav_up: config
                 .cancel_edit
                 .as_deref()
                 .and_then(parse_key_binding)
-                .unwrap_or(default.cancel_edit),
+                .unwrap_or(default.nav_up),
             next_focus: config
                 .next_focus
                 .as_deref()
                 .and_then(parse_key_binding)
                 .unwrap_or(default.next_focus),
+            new_item_above: config
+                .new_item_above
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.new_item_above),
+            new_item_below: config
+                .new_item_below
+                .as_deref()
+                .and_then(parse_key_binding)
+                .unwrap_or(default.new_item_below),
             prev_focus: config
                 .prev_focus
                 .as_deref()
