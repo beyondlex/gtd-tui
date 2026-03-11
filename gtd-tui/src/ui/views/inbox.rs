@@ -9,6 +9,15 @@ use crate::app::{App, Focus, Layer, Mode};
 pub fn render(frame: &mut Frame, area: Rect, app: &App) {
     let mut lines: Vec<Line> = Vec::new();
 
+    // Check if we should show editor before the first task (insert_at_beginning)
+    if let Some(editor) = &app.editor {
+        if editor.insert_at_beginning && editor.task_id.is_none() {
+            lines.push(Line::from("  ┌──────────────────────────────────────┐"));
+            lines.extend(editor_lines(app, editor));
+            lines.push(Line::from("  └──────────────────────────────────────┘"));
+        }
+    }
+
     for (index, task) in app.tasks.iter().enumerate() {
         let selected = index == app.selected && app.mode == Mode::Normal;
         let status = match task.status {
@@ -35,7 +44,14 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
         }
 
         if let Some(editor) = &app.editor {
-            if editor.insert_after == index {
+            let should_show_editor = if editor.insert_at_beginning {
+                false
+            } else if editor.insert_after == 0 {
+                index == 0
+            } else {
+                editor.insert_after == index
+            };
+            if should_show_editor {
                 // Add separator for new task
                 if editor.task_id.is_none() {
                     lines.push(Line::from("  ┌──────────────────────────────────────┐"));

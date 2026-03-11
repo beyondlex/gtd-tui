@@ -88,6 +88,7 @@ impl Focus {
 pub struct EditorState {
     pub task_id: Option<Uuid>,
     pub insert_after: usize,
+    pub insert_at_beginning: bool,
     pub title: String,
     pub notes: String,
     pub due_date: Option<NaiveDate>,
@@ -232,9 +233,11 @@ impl App {
             self.mode = Mode::ConfirmDelete;
             self.delete_confirm = Some(DeleteTarget::Task);
         } else if self.keymap.new_item_below.matches(key) {
-            self.start_new_task_at(self.selected);
+            self.start_new_task();
         } else if self.keymap.new_item_above.matches(key) {
-            self.start_new_task_at(self.selected.saturating_sub(1));
+            let insert_after = self.selected.saturating_sub(1);
+            let insert_at_beginning = self.selected == 0;
+            self.start_new_task_at(insert_after, insert_at_beginning);
         }
 
         Ok(())
@@ -588,18 +591,22 @@ impl App {
     }
 
     fn start_new_task(&mut self) {
-        self.start_new_task_at(if self.tasks.is_empty() {
-            0
-        } else {
-            self.selected
-        });
+        self.start_new_task_at(
+            if self.tasks.is_empty() {
+                0
+            } else {
+                self.selected
+            },
+            false,
+        );
     }
 
-    fn start_new_task_at(&mut self, insert_after: usize) {
+    fn start_new_task_at(&mut self, insert_after: usize, insert_at_beginning: bool) {
         let today = Utc::now().date_naive();
         self.editor = Some(EditorState {
             task_id: None,
             insert_after,
+            insert_at_beginning,
             title: String::new(),
             notes: String::new(),
             due_date: None,
@@ -644,6 +651,7 @@ impl App {
         self.editor = Some(EditorState {
             task_id: Some(task.id),
             insert_after: self.selected,
+            insert_at_beginning: false,
             title: task.title,
             notes: task.notes.unwrap_or_default(),
             due_date: task.due_date,
@@ -691,7 +699,7 @@ impl App {
             self.storage.update_task(&task).map_err(|e| anyhow!(e))?;
             task_id
         } else {
-            let insert_index = if self.tasks.is_empty() {
+            let insert_index = if self.tasks.is_empty() || editor.insert_at_beginning {
                 0
             } else {
                 (editor.insert_after + 1).min(self.tasks.len())
