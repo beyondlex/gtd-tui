@@ -231,7 +231,12 @@ impl App {
         } else if key.code == KeyCode::Char('d') && !self.tasks.is_empty() {
             self.mode = Mode::ConfirmDelete;
             self.delete_confirm = Some(DeleteTarget::Task);
+        } else if self.keymap.new_item_below.matches(key) {
+            self.start_new_task_at(self.selected);
+        } else if self.keymap.new_item_above.matches(key) {
+            self.start_new_task_at(self.selected.saturating_sub(1));
         }
+
         Ok(())
     }
 
@@ -246,7 +251,6 @@ impl App {
         };
 
         if key.code == KeyCode::Esc {
-
             if editor.edit_active {
                 editor.edit_active = false;
             } else if editor.layer == Layer::ChecklistItem {
@@ -260,15 +264,16 @@ impl App {
 
         if key.code == KeyCode::Char('d')
             && !editor.edit_active
-            && editor.layer == Layer::ChecklistItem {
-
+            && editor.layer == Layer::ChecklistItem
+        {
             self.mode = Mode::ConfirmDelete;
             self.delete_confirm = Some(DeleteTarget::ChecklistItem);
             return Ok(());
         }
 
-        if self.keymap.nav_up.matches(key) { // go up
-            if !editor.edit_active && editor.layer == Layer::ChecklistItem  {
+        if self.keymap.nav_up.matches(key) {
+            // go up
+            if !editor.edit_active && editor.layer == Layer::ChecklistItem {
                 // go up: focus on task.property(Title, Notes, Due, Checklist) from checklist.item
                 editor.layer = Layer::TaskItem;
                 editor.checklist_index = 0;
@@ -447,7 +452,6 @@ impl App {
             );
             editor.checklist_index += 1;
             editor.edit_active = true;
-
         } else if self.keymap.new_item_above.matches(key) {
             editor.checklist.insert(
                 editor.checklist_index,
@@ -584,11 +588,14 @@ impl App {
     }
 
     fn start_new_task(&mut self) {
-        let insert_after = if self.tasks.is_empty() {
+        self.start_new_task_at(if self.tasks.is_empty() {
             0
         } else {
             self.selected
-        };
+        });
+    }
+
+    fn start_new_task_at(&mut self, insert_after: usize) {
         let today = Utc::now().date_naive();
         self.editor = Some(EditorState {
             task_id: None,
