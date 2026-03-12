@@ -284,7 +284,7 @@ impl App {
                 // go up: focus on task.property(Title, Notes, Due, Checklist) from checklist.item
                 editor.layer = Layer::TaskItem;
                 editor.checklist_index = 0;
-            } else if editor.layer != Layer::ChecklistItem {
+            } else if editor.layer == Layer::TaskItem && !editor.edit_active {
                 // focus on task.item from task.property
                 self.cancel_edit();
                 return Ok(());
