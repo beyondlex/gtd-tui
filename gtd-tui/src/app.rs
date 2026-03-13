@@ -313,6 +313,11 @@ impl App {
                 self.keymap.prev_focus.matches(key) ||
                 (self.keymap.date_edit_mode.matches(key) && editor.focus == Focus::Checklist) ||
                 (self.keymap.checklist_edit_toggle.matches(key) && editor.focus != Focus::DueDate)
+            ) || (
+                // Save date before moving down to checklist
+                !editor.edit_active &&
+                editor.focus == Focus::DueDate &&
+                key.code == KeyCode::Down
             )
         } else {
             false
