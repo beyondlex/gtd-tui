@@ -2,7 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::config::KeysConfig;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct KeyBinding {
     pub ctrl: bool,
     pub shift: bool,
@@ -28,9 +28,10 @@ impl KeyBinding {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct Keymap {
+#[derive(Debug, Clone, Copy, Default)]
+pub struct NavigationKeys {
     pub quit: KeyBinding,
+    pub refresh: KeyBinding,
     pub view_inbox: KeyBinding,
     pub view_today: KeyBinding,
     pub view_upcoming: KeyBinding,
@@ -38,43 +39,9 @@ pub struct Keymap {
     pub view_someday: KeyBinding,
     pub select_next: KeyBinding,
     pub select_prev: KeyBinding,
-    pub new_task: KeyBinding,
-    pub edit_task: KeyBinding,
-    pub toggle_task: KeyBinding,
-    pub refresh: KeyBinding,
-    pub save_edit: KeyBinding,
-    pub nav_up: KeyBinding,
-    pub next_focus: KeyBinding,
-    pub prev_focus: KeyBinding,
-    pub checklist_edit_toggle: KeyBinding,
-    pub date_prev_day: KeyBinding,
-    pub date_next_day: KeyBinding,
-    pub date_prev_day_in_edit_mode: KeyBinding,
-    pub date_next_day_in_edit_mode: KeyBinding,
-    pub date_prev_week: KeyBinding,
-    pub date_next_week: KeyBinding,
-    pub date_edit_mode: KeyBinding,
-    pub date_prev_month: KeyBinding,
-    pub date_next_month: KeyBinding,
-    pub date_today: KeyBinding,
-    pub date_tomorrow: KeyBinding,
-    pub new_item_above: KeyBinding,
-    pub new_item_below: KeyBinding,
-    pub move_item_up: KeyBinding,
-    pub move_item_down: KeyBinding,
-    pub checklist_toggle: KeyBinding,
-    pub checklist_add: KeyBinding,
-    pub checklist_next: KeyBinding,
-    pub checklist_prev: KeyBinding,
 }
 
-impl Default for Keymap {
-    fn default() -> Self {
-        Self::default_keymap()
-    }
-}
-
-impl Keymap {
+impl NavigationKeys {
     pub fn default_keymap() -> Self {
         Self {
             quit: KeyBinding {
@@ -122,6 +89,26 @@ impl Keymap {
                 shift: false,
                 key: 'k',
             },
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct TaskKeys {
+    pub new_task: KeyBinding,
+    pub edit_task: KeyBinding,
+    pub toggle_task: KeyBinding,
+    pub delete: KeyBinding,
+    pub new_item_above: KeyBinding,
+    pub new_item_below: KeyBinding,
+    pub move_item_up: KeyBinding,
+    pub move_item_down: KeyBinding,
+    pub save_edit: KeyBinding,
+}
+
+impl TaskKeys {
+    pub fn default_keymap() -> Self {
+        Self {
             new_task: KeyBinding {
                 ctrl: false,
                 shift: false,
@@ -137,85 +124,10 @@ impl Keymap {
                 shift: false,
                 key: 'x',
             },
-            save_edit: KeyBinding {
-                ctrl: true,
-                shift: false,
-                key: 's',
-            },
-            nav_up: KeyBinding {
+            delete: KeyBinding {
                 ctrl: false,
                 shift: false,
-                key: 'q',
-            },
-            next_focus: KeyBinding {
-                ctrl: false,
-                shift: false,
-                key: 'j',
-            },
-            prev_focus: KeyBinding {
-                ctrl: false,
-                shift: false,
-                key: 'k',
-            },
-            checklist_edit_toggle: KeyBinding {
-                ctrl: true,
-                shift: false,
-                key: 'e',
-            },
-            date_prev_day: KeyBinding {
-                ctrl: true,
-                shift: false,
-                key: 'h',
-            },
-            date_next_day: KeyBinding {
-                ctrl: true,
-                shift: false,
-                key: 'l',
-            },
-            date_prev_day_in_edit_mode: KeyBinding {
-                ctrl: false,
-                shift: false,
-                key: 'h',
-            },
-            date_next_day_in_edit_mode: KeyBinding {
-                ctrl: false,
-                shift: false,
-                key: 'l',
-            },
-            date_prev_week: KeyBinding {
-                ctrl: false,
-                shift: false,
-                key: 'k',
-            },
-            date_next_week: KeyBinding {
-                ctrl: false,
-                shift: false,
-                key: 'j',
-            },
-            date_edit_mode: KeyBinding {
-                ctrl: false,
-                shift: false,
-                key: 'l',
-            },
-            date_prev_month: KeyBinding {
-                ctrl: false,
-                shift: false,
-                key: 'p',
-            },
-            date_next_month: KeyBinding {
-                ctrl: false,
-                shift: false,
-                key: 'n',
-            },
-            date_today: KeyBinding {
-                ctrl: false,
-                shift: false,
-                key: 't',
-            },
-            date_tomorrow: KeyBinding {
-                ctrl: false,
-                shift: false,
-                key: 'm',
+                key: 'd',
             },
             new_item_above: KeyBinding {
                 ctrl: false,
@@ -237,212 +149,387 @@ impl Keymap {
                 shift: true,
                 key: 'j',
             },
-            checklist_toggle: KeyBinding {
+            save_edit: KeyBinding {
+                ctrl: true,
+                shift: false,
+                key: 's',
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct EditorKeys {
+    pub nav_up: KeyBinding,
+    pub next_focus: KeyBinding,
+    pub prev_focus: KeyBinding,
+    pub checklist_edit_toggle: KeyBinding,
+    pub cancel_edit: KeyBinding,
+}
+
+impl EditorKeys {
+    pub fn default_keymap() -> Self {
+        Self {
+            nav_up: KeyBinding {
                 ctrl: false,
                 shift: false,
-                key: 'x',
+                key: 'q',
             },
-            checklist_add: KeyBinding {
-                ctrl: false,
-                shift: false,
-                key: 'l',
-            },
-            checklist_next: KeyBinding {
+            next_focus: KeyBinding {
                 ctrl: false,
                 shift: false,
                 key: 'j',
             },
-            checklist_prev: KeyBinding {
+            prev_focus: KeyBinding {
+                ctrl: false,
+                shift: false,
+                key: 'k',
+            },
+            checklist_edit_toggle: KeyBinding {
+                ctrl: true,
+                shift: false,
+                key: 'e',
+            },
+            cancel_edit: KeyBinding {
+                ctrl: false,
+                shift: false,
+                key: 'q',
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct DateKeys {
+    pub prev_day: KeyBinding,
+    pub next_day: KeyBinding,
+    pub prev_day_in_edit: KeyBinding,
+    pub next_day_in_edit: KeyBinding,
+    pub prev_week: KeyBinding,
+    pub next_week: KeyBinding,
+    pub edit_mode: KeyBinding,
+    pub prev_month: KeyBinding,
+    pub next_month: KeyBinding,
+    pub today: KeyBinding,
+    pub tomorrow: KeyBinding,
+}
+
+impl DateKeys {
+    pub fn default_keymap() -> Self {
+        Self {
+            prev_day: KeyBinding {
+                ctrl: true,
+                shift: false,
+                key: 'h',
+            },
+            next_day: KeyBinding {
+                ctrl: true,
+                shift: false,
+                key: 'l',
+            },
+            prev_day_in_edit: KeyBinding {
+                ctrl: false,
+                shift: false,
+                key: 'h',
+            },
+            next_day_in_edit: KeyBinding {
+                ctrl: false,
+                shift: false,
+                key: 'l',
+            },
+            prev_week: KeyBinding {
+                ctrl: false,
+                shift: false,
+                key: 'k',
+            },
+            next_week: KeyBinding {
+                ctrl: false,
+                shift: false,
+                key: 'j',
+            },
+            edit_mode: KeyBinding {
+                ctrl: false,
+                shift: false,
+                key: 'l',
+            },
+            prev_month: KeyBinding {
+                ctrl: false,
+                shift: false,
+                key: 'p',
+            },
+            next_month: KeyBinding {
+                ctrl: false,
+                shift: false,
+                key: 'n',
+            },
+            today: KeyBinding {
+                ctrl: false,
+                shift: false,
+                key: 't',
+            },
+            tomorrow: KeyBinding {
+                ctrl: false,
+                shift: false,
+                key: 'm',
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ChecklistKeys {
+    pub toggle: KeyBinding,
+    pub add: KeyBinding,
+    pub next: KeyBinding,
+    pub prev: KeyBinding,
+}
+
+impl ChecklistKeys {
+    pub fn default_keymap() -> Self {
+        Self {
+            toggle: KeyBinding {
+                ctrl: false,
+                shift: false,
+                key: 'x',
+            },
+            add: KeyBinding {
+                ctrl: false,
+                shift: false,
+                key: 'l',
+            },
+            next: KeyBinding {
+                ctrl: false,
+                shift: false,
+                key: 'j',
+            },
+            prev: KeyBinding {
                 ctrl: false,
                 shift: false,
                 key: 'k',
             },
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Keymap {
+    pub navigation: NavigationKeys,
+    pub task: TaskKeys,
+    pub editor: EditorKeys,
+    pub date: DateKeys,
+    pub checklist: ChecklistKeys,
+}
+
+impl Keymap {
+    pub fn default_keymap() -> Self {
+        Self {
+            navigation: NavigationKeys::default_keymap(),
+            task: TaskKeys::default_keymap(),
+            editor: EditorKeys::default_keymap(),
+            date: DateKeys::default_keymap(),
+            checklist: ChecklistKeys::default_keymap(),
+        }
+    }
 
     pub fn from_config(config: &KeysConfig) -> Self {
         let default = Self::default_keymap();
         Self {
-            quit: config
-                .quit
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.quit),
-            view_inbox: config
-                .view_inbox
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.view_inbox),
-            view_today: config
-                .view_today
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.view_today),
-            view_upcoming: config
-                .view_upcoming
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.view_upcoming),
-            view_anytime: config
-                .view_anytime
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.view_anytime),
-            view_someday: config
-                .view_someday
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.view_someday),
-            select_next: config
-                .select_next
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.select_next),
-            select_prev: config
-                .select_prev
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.select_prev),
-            new_task: config
-                .new_task
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.new_task),
-            edit_task: config
-                .edit_task
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.edit_task),
-            toggle_task: config
-                .toggle_task
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.toggle_task),
-            refresh: config
-                .refresh
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.refresh),
-            save_edit: config
-                .save_edit
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.save_edit),
-            nav_up: config
-                .cancel_edit
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.nav_up),
-            next_focus: config
-                .next_focus
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.next_focus),
-            new_item_above: config
-                .new_item_above
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.new_item_above),
-            new_item_below: config
-                .new_item_below
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.new_item_below),
-            move_item_up: config
-                .move_item_up
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.move_item_up),
-            move_item_down: config
-                .move_item_down
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.move_item_down),
-            prev_focus: config
-                .prev_focus
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.prev_focus),
-            checklist_edit_toggle: config
-                .checklist_edit_toggle
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.checklist_edit_toggle),
-            date_prev_day: config
-                .date_prev_day
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.date_prev_day),
-            date_next_day: config
-                .date_next_day
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.date_next_day),
-            date_prev_day_in_edit_mode: config
-                .date_prev_day
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.date_prev_day_in_edit_mode),
-            date_next_day_in_edit_mode: config
-                .date_next_day
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.date_next_day_in_edit_mode),
-            date_prev_week: config
-                .date_prev_week
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.date_prev_week),
-            date_next_week: config
-                .date_next_week
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.date_next_week),
-            date_edit_mode: config
-                .date_edit_mode
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.date_edit_mode),
-            date_prev_month: config
-                .date_prev_month
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.date_prev_month),
-            date_next_month: config
-                .date_next_month
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.date_next_month),
-            date_today: config
-                .date_today
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.date_today),
-            date_tomorrow: config
-                .date_tomorrow
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.date_tomorrow),
-            checklist_toggle: config
-                .checklist_toggle
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.checklist_toggle),
-            checklist_add: config
-                .checklist_add
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.checklist_add),
-            checklist_next: config
-                .checklist_next
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.checklist_next),
-            checklist_prev: config
-                .checklist_prev
-                .as_deref()
-                .and_then(parse_key_binding)
-                .unwrap_or(default.checklist_prev),
+            navigation: NavigationKeys {
+                quit: config
+                    .quit
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.navigation.quit),
+                refresh: config
+                    .refresh
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.navigation.refresh),
+                view_inbox: config
+                    .view_inbox
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.navigation.view_inbox),
+                view_today: config
+                    .view_today
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.navigation.view_today),
+                view_upcoming: config
+                    .view_upcoming
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.navigation.view_upcoming),
+                view_anytime: config
+                    .view_anytime
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.navigation.view_anytime),
+                view_someday: config
+                    .view_someday
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.navigation.view_someday),
+                select_next: config
+                    .select_next
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.navigation.select_next),
+                select_prev: config
+                    .select_prev
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.navigation.select_prev),
+            },
+            task: TaskKeys {
+                new_task: config
+                    .new_task
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.task.new_task),
+                edit_task: config
+                    .edit_task
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.task.edit_task),
+                toggle_task: config
+                    .toggle_task
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.task.toggle_task),
+                delete: default.task.delete,
+                new_item_above: config
+                    .new_item_above
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.task.new_item_above),
+                new_item_below: config
+                    .new_item_below
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.task.new_item_below),
+                move_item_up: config
+                    .move_item_up
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.task.move_item_up),
+                move_item_down: config
+                    .move_item_down
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.task.move_item_down),
+                save_edit: config
+                    .save_edit
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.task.save_edit),
+            },
+            editor: EditorKeys {
+                nav_up: config
+                    .cancel_edit
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.editor.nav_up),
+                next_focus: config
+                    .next_focus
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.editor.next_focus),
+                prev_focus: config
+                    .prev_focus
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.editor.prev_focus),
+                checklist_edit_toggle: config
+                    .checklist_edit_toggle
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.editor.checklist_edit_toggle),
+                cancel_edit: config
+                    .cancel_edit
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.editor.cancel_edit),
+            },
+            date: DateKeys {
+                prev_day: config
+                    .date_prev_day
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.date.prev_day),
+                next_day: config
+                    .date_next_day
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.date.next_day),
+                prev_day_in_edit: config
+                    .date_prev_day
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.date.prev_day_in_edit),
+                next_day_in_edit: config
+                    .date_next_day
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.date.next_day_in_edit),
+                prev_week: config
+                    .date_prev_week
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.date.prev_week),
+                next_week: config
+                    .date_next_week
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.date.next_week),
+                edit_mode: config
+                    .date_edit_mode
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.date.edit_mode),
+                prev_month: config
+                    .date_prev_month
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.date.prev_month),
+                next_month: config
+                    .date_next_month
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.date.next_month),
+                today: config
+                    .date_today
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.date.today),
+                tomorrow: config
+                    .date_tomorrow
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.date.tomorrow),
+            },
+            checklist: ChecklistKeys {
+                toggle: config
+                    .checklist_toggle
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.checklist.toggle),
+                add: config
+                    .checklist_add
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.checklist.add),
+                next: config
+                    .checklist_next
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.checklist.next),
+                prev: config
+                    .checklist_prev
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.checklist.prev),
+            },
         }
     }
 }

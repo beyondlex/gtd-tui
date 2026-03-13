@@ -28,44 +28,44 @@ impl App {
     pub fn on_key_normal(&mut self, key: KeyEvent) -> Result<()> {
         let keymap = get_keymap();
 
-        if keymap.quit.matches(key)
+        if keymap.navigation.quit.matches(key)
             || (key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c'))
         {
             self.should_quit = true;
-        } else if keymap.view_inbox.matches(key) || key.code == KeyCode::Char('i') {
+        } else if keymap.navigation.view_inbox.matches(key) || key.code == KeyCode::Char('i') {
             self.view = View::Inbox;
-        } else if keymap.view_today.matches(key) || key.code == KeyCode::Char('t') {
+        } else if keymap.navigation.view_today.matches(key) || key.code == KeyCode::Char('t') {
             self.view = View::Today;
-        } else if keymap.view_upcoming.matches(key) || key.code == KeyCode::Char('u') {
+        } else if keymap.navigation.view_upcoming.matches(key) || key.code == KeyCode::Char('u') {
             self.view = View::Upcoming;
-        } else if keymap.view_anytime.matches(key) {
+        } else if keymap.navigation.view_anytime.matches(key) {
             self.view = View::Anytime;
-        } else if keymap.view_someday.matches(key) || key.code == KeyCode::Char('s') {
+        } else if keymap.navigation.view_someday.matches(key) || key.code == KeyCode::Char('s') {
             self.view = View::Someday;
-        } else if keymap.select_next.matches(key) || key.code == KeyCode::Down {
+        } else if keymap.navigation.select_next.matches(key) || key.code == KeyCode::Down {
             self.select_next();
-        } else if keymap.select_prev.matches(key) || key.code == KeyCode::Up {
+        } else if keymap.navigation.select_prev.matches(key) || key.code == KeyCode::Up {
             self.select_prev();
-        } else if keymap.new_task.matches(key) {
+        } else if keymap.task.new_task.matches(key) {
             self.start_new_task();
-        } else if keymap.edit_task.matches(key) && self.view == View::Inbox {
+        } else if keymap.task.edit_task.matches(key) && self.view == View::Inbox {
             self.start_edit_task()?;
-        } else if keymap.toggle_task.matches(key) {
+        } else if keymap.task.toggle_task.matches(key) {
             self.toggle_selected_task()?;
-        } else if keymap.refresh.matches(key) {
+        } else if keymap.navigation.refresh.matches(key) {
             self.refresh_tasks()?;
         } else if key.code == KeyCode::Char('d') && !self.tasks.is_empty() {
             self.mode = Mode::ConfirmDelete;
             self.delete_confirm = Some(DeleteTarget::Task);
-        } else if keymap.new_item_below.matches(key) {
+        } else if keymap.task.new_item_below.matches(key) {
             self.start_new_task();
-        } else if keymap.new_item_above.matches(key) {
+        } else if keymap.task.new_item_above.matches(key) {
             let insert_after = self.selected.saturating_sub(1);
             let insert_at_beginning = self.selected == 0;
             self.start_new_task_at(insert_after, insert_at_beginning);
-        } else if keymap.move_item_down.matches(key) {
+        } else if keymap.task.move_item_down.matches(key) {
             self.move_task_down()?;
-        } else if keymap.move_item_up.matches(key) {
+        } else if keymap.task.move_item_up.matches(key) {
             self.move_task_up()?;
         }
 
@@ -75,7 +75,7 @@ impl App {
     pub fn on_key_edit(&mut self, key: KeyEvent) -> Result<()> {
         let keymap = get_keymap();
 
-        if keymap.save_edit.matches(key) {
+        if keymap.task.save_edit.matches(key) {
             return self.save_edit();
         }
 
@@ -110,7 +110,7 @@ impl App {
             return Ok(());
         }
 
-        if keymap.nav_up.matches(key) {
+        if keymap.editor.nav_up.matches(key) {
             if !editor.edit_active && editor.layer == Layer::ChecklistItem {
                 editor.layer = Layer::TaskItem;
                 editor.checklist_index = 0;
@@ -132,10 +132,10 @@ impl App {
 
         let needs_auto_save = if let Some(editor) = self.editor.as_ref() {
             editor.edit_active
-                && (keymap.next_focus.matches(key)
-                    || keymap.prev_focus.matches(key)
-                    || (keymap.date_edit_mode.matches(key) && editor.focus == Focus::Checklist)
-                    || (keymap.checklist_edit_toggle.matches(key)
+                && (keymap.editor.next_focus.matches(key)
+                    || keymap.editor.prev_focus.matches(key)
+                    || (keymap.date.edit_mode.matches(key) && editor.focus == Focus::Checklist)
+                    || (keymap.editor.checklist_edit_toggle.matches(key)
                         && editor.focus != Focus::DueDate))
                 || (!editor.edit_active
                     && editor.focus == Focus::DueDate
@@ -152,7 +152,7 @@ impl App {
             None => return,
         };
 
-        if keymap.checklist_edit_toggle.matches(key) {
+        if keymap.editor.checklist_edit_toggle.matches(key) {
             editor.edit_active = !editor.edit_active;
             if editor.focus == Focus::DueDate {
                 if editor.edit_active {
@@ -178,23 +178,23 @@ impl App {
             return;
         }
 
-        if keymap.next_focus.matches(key) {
+        if keymap.editor.next_focus.matches(key) {
             editor.focus = editor.focus.next();
             if editor.focus == Focus::Checklist {
                 super::editor::ensure_checklist_not_empty(&mut editor.checklist);
                 editor.checklist_index = 0;
             }
-        } else if keymap.prev_focus.matches(key) {
+        } else if keymap.editor.prev_focus.matches(key) {
             editor.focus = editor.focus.prev();
             if editor.focus == Focus::Checklist {
                 super::editor::ensure_checklist_not_empty(&mut editor.checklist);
                 editor.checklist_index = 0;
             }
-        } else if keymap.date_edit_mode.matches(key) && editor.focus == Focus::Checklist {
+        } else if keymap.date.edit_mode.matches(key) && editor.focus == Focus::Checklist {
             editor.layer = Layer::ChecklistItem;
             super::editor::ensure_checklist_not_empty(&mut editor.checklist);
             editor.checklist_index = 0;
-        } else if keymap.date_edit_mode.matches(key) {
+        } else if keymap.date.edit_mode.matches(key) {
             editor.edit_active = true;
             if editor.focus == Focus::DueDate {
                 if let Some(due) = editor.due_date {
@@ -206,23 +206,23 @@ impl App {
             editor.focus = Focus::Checklist;
             super::editor::ensure_checklist_not_empty(&mut editor.checklist);
             editor.checklist_index = 0;
-        } else if keymap.checklist_toggle.matches(key) && editor.focus == Focus::Checklist {
+        } else if keymap.checklist.toggle.matches(key) && editor.focus == Focus::Checklist {
             if let Some(item) = editor.checklist.get_mut(editor.checklist_index) {
                 item.checked = !item.checked;
             }
-        } else if keymap.date_prev_day.matches(key) && editor.focus == Focus::DueDate {
+        } else if keymap.date.prev_day.matches(key) && editor.focus == Focus::DueDate {
             let base = editor.due_date.unwrap_or_else(|| Utc::now().date_naive());
             let next = base - chrono::Duration::days(1);
             editor.due_date = Some(next);
             editor.date_picker.cursor = next;
             let _ = self.auto_save_current_edit();
-        } else if keymap.date_next_day.matches(key) && editor.focus == Focus::DueDate {
+        } else if keymap.date.next_day.matches(key) && editor.focus == Focus::DueDate {
             let base = editor.due_date.unwrap_or_else(|| Utc::now().date_naive());
             let next = base + chrono::Duration::days(1);
             editor.due_date = Some(next);
             editor.date_picker.cursor = next;
             let _ = self.auto_save_current_edit();
-        } else if keymap.date_today.matches(key)
+        } else if keymap.date.today.matches(key)
             && editor.focus == Focus::DueDate
             && !editor.edit_active
         {
@@ -230,7 +230,7 @@ impl App {
             editor.due_date = Some(today);
             editor.date_picker.cursor = today;
             let _ = self.auto_save_current_edit();
-        } else if keymap.date_tomorrow.matches(key)
+        } else if keymap.date.tomorrow.matches(key)
             && editor.focus == Focus::DueDate
             && !editor.edit_active
         {
@@ -263,43 +263,43 @@ impl App {
             return;
         }
 
-        if keymap.prev_focus.matches(key) {
+        if keymap.editor.prev_focus.matches(key) {
             if editor.checklist_index > 0 {
                 editor.checklist_index -= 1;
             }
-        } else if keymap.next_focus.matches(key) {
+        } else if keymap.editor.next_focus.matches(key) {
             if !editor.checklist.is_empty() {
                 editor.checklist_index =
                     (editor.checklist_index + 1).min(editor.checklist.len().saturating_sub(1));
             }
-        } else if keymap.date_edit_mode.matches(key) {
+        } else if keymap.date.edit_mode.matches(key) {
             editor.edit_active = true;
-        } else if keymap.nav_up.matches(key) && !editor.edit_active {
+        } else if keymap.editor.nav_up.matches(key) && !editor.edit_active {
             editor.layer = Layer::TaskItem;
             editor.checklist_index = 0;
-        } else if keymap.checklist_toggle.matches(key) {
+        } else if keymap.checklist.toggle.matches(key) {
             if let Some(item) = editor.checklist.get_mut(editor.checklist_index) {
                 item.checked = !item.checked;
             }
-        } else if keymap.new_item_below.matches(key) {
+        } else if keymap.task.new_item_below.matches(key) {
             editor
                 .checklist
                 .insert(editor.checklist_index + 1, ChecklistDraft::new());
             editor.checklist_index += 1;
             editor.edit_active = true;
-        } else if keymap.new_item_above.matches(key) {
+        } else if keymap.task.new_item_above.matches(key) {
             editor
                 .checklist
                 .insert(editor.checklist_index, ChecklistDraft::new());
             editor.edit_active = true;
-        } else if keymap.move_item_down.matches(key) {
+        } else if keymap.task.move_item_down.matches(key) {
             if editor.checklist_index < editor.checklist.len() - 1 {
                 editor
                     .checklist
                     .swap(editor.checklist_index, editor.checklist_index + 1);
                 editor.checklist_index += 1;
             }
-        } else if keymap.move_item_up.matches(key) {
+        } else if keymap.task.move_item_up.matches(key) {
             if editor.checklist_index > 0 {
                 editor
                     .checklist
@@ -338,36 +338,36 @@ impl App {
                 }
             }
             Focus::DueDate => {
-                if keymap.date_prev_day_in_edit_mode.matches(key) {
+                if keymap.date.prev_day_in_edit.matches(key) {
                     editor.date_picker.move_days(-1);
                     editor.due_date = Some(editor.date_picker.cursor);
                     let _ = self.auto_save_current_edit();
-                } else if keymap.date_next_day_in_edit_mode.matches(key) {
+                } else if keymap.date.next_day_in_edit.matches(key) {
                     editor.date_picker.move_days(1);
                     editor.due_date = Some(editor.date_picker.cursor);
                     let _ = self.auto_save_current_edit();
-                } else if keymap.date_prev_week.matches(key) {
+                } else if keymap.date.prev_week.matches(key) {
                     editor.date_picker.move_days(-7);
                     editor.due_date = Some(editor.date_picker.cursor);
                     let _ = self.auto_save_current_edit();
-                } else if keymap.date_next_week.matches(key) {
+                } else if keymap.date.next_week.matches(key) {
                     editor.date_picker.move_days(7);
                     editor.due_date = Some(editor.date_picker.cursor);
                     let _ = self.auto_save_current_edit();
-                } else if keymap.date_prev_month.matches(key) {
+                } else if keymap.date.prev_month.matches(key) {
                     editor.date_picker.move_months(-1);
                     editor.due_date = Some(editor.date_picker.cursor);
                     let _ = self.auto_save_current_edit();
-                } else if keymap.date_next_month.matches(key) {
+                } else if keymap.date.next_month.matches(key) {
                     editor.date_picker.move_months(1);
                     editor.due_date = Some(editor.date_picker.cursor);
                     let _ = self.auto_save_current_edit();
-                } else if keymap.date_today.matches(key) {
+                } else if keymap.date.today.matches(key) {
                     let today = Utc::now().date_naive();
                     editor.date_picker.cursor = today;
                     editor.due_date = Some(today);
                     let _ = self.auto_save_current_edit();
-                } else if keymap.date_tomorrow.matches(key) {
+                } else if keymap.date.tomorrow.matches(key) {
                     let tomorrow = Utc::now().date_naive() + chrono::Duration::days(1);
                     editor.date_picker.cursor = tomorrow;
                     editor.due_date = Some(tomorrow);
