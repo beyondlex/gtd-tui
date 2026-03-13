@@ -205,7 +205,9 @@ impl App {
     }
 
     fn on_key_normal(&mut self, key: KeyEvent) -> Result<()> {
-        if self.keymap.quit.matches(key) || key.code == KeyCode::Esc {
+        if self.keymap.quit.matches(key)
+            || (key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c'))
+        {
             self.should_quit = true;
         } else if self.keymap.view_inbox.matches(key) || key.code == KeyCode::Char('i') {
             self.view = View::Inbox;
