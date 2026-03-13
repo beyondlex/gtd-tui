@@ -341,6 +341,17 @@ impl App {
             return;
         }
 
+        // Handle Enter key in DueDate edit mode - save date before focus change
+        if editor.edit_active
+            && editor.focus == Focus::DueDate
+            && key.code == KeyCode::Enter
+        {
+            editor.due_date = Some(editor.date_picker.cursor);
+            let _ = self.auto_save_current_edit();
+            self.handle_edit_mode(key); // This will handle focus change
+            return;
+        }
+
         if editor.edit_active {
             self.handle_edit_mode(key);
             return;
@@ -403,11 +414,13 @@ impl App {
             let next = base - chrono::Duration::days(1);
             editor.due_date = Some(next);
             editor.date_picker.cursor = next;
+            let _ = self.auto_save_current_edit();
         } else if self.keymap.date_next_day.matches(key) && editor.focus == Focus::DueDate {
             let base = editor.due_date.unwrap_or_else(|| Utc::now().date_naive());
             let next = base + chrono::Duration::days(1);
             editor.due_date = Some(next);
             editor.date_picker.cursor = next;
+            let _ = self.auto_save_current_edit();
         } else if self.keymap.date_today.matches(key)
             && editor.focus == Focus::DueDate
             && !editor.edit_active
@@ -415,6 +428,7 @@ impl App {
             let today = Utc::now().date_naive();
             editor.due_date = Some(today);
             editor.date_picker.cursor = today;
+            let _ = self.auto_save_current_edit();
         } else if self.keymap.date_tomorrow.matches(key)
             && editor.focus == Focus::DueDate
             && !editor.edit_active
@@ -422,6 +436,7 @@ impl App {
             let tomorrow = Utc::now().date_naive() + chrono::Duration::days(1);
             editor.due_date = Some(tomorrow);
             editor.date_picker.cursor = tomorrow;
+            let _ = self.auto_save_current_edit();
         } else if key.code == KeyCode::Char('o') && editor.focus == Focus::Checklist {
             let shift_pressed = key.modifiers.contains(KeyModifiers::SHIFT);
             if shift_pressed {
@@ -540,24 +555,38 @@ impl App {
             Focus::DueDate => {
                 if self.keymap.date_prev_day_in_edit_mode.matches(key) {
                     editor.date_picker.move_days(-1);
+                    editor.due_date = Some(editor.date_picker.cursor);
+                    let _ = self.auto_save_current_edit();
                 } else if self.keymap.date_next_day_in_edit_mode.matches(key) {
                     editor.date_picker.move_days(1);
+                    editor.due_date = Some(editor.date_picker.cursor);
+                    let _ = self.auto_save_current_edit();
                 } else if self.keymap.date_prev_week.matches(key) {
                     editor.date_picker.move_days(-7);
+                    editor.due_date = Some(editor.date_picker.cursor);
+                    let _ = self.auto_save_current_edit();
                 } else if self.keymap.date_next_week.matches(key) {
                     editor.date_picker.move_days(7);
+                    editor.due_date = Some(editor.date_picker.cursor);
+                    let _ = self.auto_save_current_edit();
                 } else if self.keymap.date_prev_month.matches(key) {
                     editor.date_picker.move_months(-1);
+                    editor.due_date = Some(editor.date_picker.cursor);
+                    let _ = self.auto_save_current_edit();
                 } else if self.keymap.date_next_month.matches(key) {
                     editor.date_picker.move_months(1);
+                    editor.due_date = Some(editor.date_picker.cursor);
+                    let _ = self.auto_save_current_edit();
                 } else if self.keymap.date_today.matches(key) {
                     let today = Utc::now().date_naive();
                     editor.date_picker.cursor = today;
                     editor.due_date = Some(today);
+                    let _ = self.auto_save_current_edit();
                 } else if self.keymap.date_tomorrow.matches(key) {
                     let tomorrow = Utc::now().date_naive() + chrono::Duration::days(1);
                     editor.date_picker.cursor = tomorrow;
                     editor.due_date = Some(tomorrow);
+                    let _ = self.auto_save_current_edit();
                 } else if key.code == KeyCode::Enter {
                     editor.due_date = Some(editor.date_picker.cursor);
                     editor.focus = Focus::Checklist;
@@ -832,13 +861,14 @@ impl App {
     /// This is called when text input loses focus (edit_active becomes false).
     fn auto_save_current_edit(&mut self) -> Result<()> {
         // Extract needed data before any borrowing
-        let (task_id, layer, focus, new_title, new_notes, checklist_items) = match self.editor.as_ref() {
+        let (task_id, layer, focus, new_title, new_notes, due_date, checklist_items) = match self.editor.as_ref() {
             Some(editor) => (
                 editor.task_id,
                 editor.layer,
                 editor.focus,
                 editor.title.clone(),
                 editor.notes.clone(),
+                editor.due_date,
                 editor.checklist.clone(),
             ),
             None => return Ok(()),
@@ -878,6 +908,13 @@ impl App {
                     needs_task_update = true;
                 }
             }
+            (Layer::TaskItem, Focus::DueDate) => {
+                // Save due_date changes (for date picker Enter key)
+                if task.due_date != due_date {
+                    task_clone.due_date = due_date;
+                    needs_task_update = true;
+                }
+            }
             (Layer::ChecklistItem, _) => {
                 // Save checklist item title changes
                 if let Ok(existing_checklist) = self.storage.get_checklist(task_id) {
@@ -890,7 +927,6 @@ impl App {
                 }
             }
             _ => {
-                // DueDate is saved separately via arrow keys
                 // Checklist in TaskItem layer is saved via replace_checklist
             }
         }
