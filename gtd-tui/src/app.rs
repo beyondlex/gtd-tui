@@ -254,6 +254,11 @@ impl App {
             return self.save_edit();
         }
 
+        // Auto-save if Esc is pressed while editing (before getting mutable reference)
+        if key.code == KeyCode::Esc && self.editor.as_ref().map(|e| e.edit_active).unwrap_or(false) {
+            let _ = self.auto_save_current_edit();
+        }
+
         let editor = match self.editor.as_mut() {
             Some(editor) => editor,
             None => return Ok(()),
@@ -301,10 +306,40 @@ impl App {
     }
 
     fn handle_task_item_layer(&mut self, key: KeyEvent) {
+        // Auto-save before changing focus, entering checklist items, or toggling off edit mode
+        let needs_auto_save = if let Some(editor) = self.editor.as_ref() {
+            editor.edit_active && (
+                self.keymap.next_focus.matches(key) ||
+                self.keymap.prev_focus.matches(key) ||
+                (self.keymap.date_edit_mode.matches(key) && editor.focus == Focus::Checklist) ||
+                (self.keymap.checklist_edit_toggle.matches(key) && editor.focus != Focus::DueDate)
+            )
+        } else {
+            false
+        };
+        if needs_auto_save {
+            let _ = self.auto_save_current_edit();
+        }
+
         let editor = match self.editor.as_mut() {
             Some(editor) => editor,
             None => return,
         };
+
+        // Handle checklist_edit_toggle specially - it toggles edit mode
+        if self.keymap.checklist_edit_toggle.matches(key) {
+            editor.edit_active = !editor.edit_active;
+            if editor.focus == Focus::DueDate {
+                if editor.edit_active {
+                    if let Some(due) = editor.due_date {
+                        editor.date_picker.cursor = due;
+                    }
+                } else {
+                    editor.due_date = Some(editor.date_picker.cursor);
+                }
+            }
+            return;
+        }
 
         if editor.edit_active {
             self.handle_edit_mode(key);
@@ -362,17 +397,6 @@ impl App {
         } else if self.keymap.checklist_toggle.matches(key) && editor.focus == Focus::Checklist {
             if let Some(item) = editor.checklist.get_mut(editor.checklist_index) {
                 item.checked = !item.checked;
-            }
-        } else if self.keymap.checklist_edit_toggle.matches(key) {
-            editor.edit_active = !editor.edit_active;
-            if editor.focus == Focus::DueDate {
-                if editor.edit_active {
-                    if let Some(due) = editor.due_date {
-                        editor.date_picker.cursor = due;
-                    }
-                } else {
-                    editor.due_date = Some(editor.date_picker.cursor);
-                }
             }
         } else if self.keymap.date_prev_day.matches(key) && editor.focus == Focus::DueDate {
             let base = editor.due_date.unwrap_or_else(|| Utc::now().date_naive());
@@ -801,6 +825,91 @@ impl App {
                 .create_checklist_item(&item)
                 .map_err(|e| anyhow!(e))?;
         }
+        Ok(())
+    }
+
+    /// Auto-save the current field being edited without exiting edit mode.
+    /// This is called when text input loses focus (edit_active becomes false).
+    fn auto_save_current_edit(&mut self) -> Result<()> {
+        // Extract needed data before any borrowing
+        let (task_id, layer, focus, new_title, new_notes, checklist_items) = match self.editor.as_ref() {
+            Some(editor) => (
+                editor.task_id,
+                editor.layer,
+                editor.focus,
+                editor.title.clone(),
+                editor.notes.clone(),
+                editor.checklist.clone(),
+            ),
+            None => return Ok(()),
+        };
+
+        let Some(task_id) = task_id else {
+            // New task - no need to auto-save until full save
+            return Ok(());
+        };
+
+        // Find the task in our list
+        let task = match self.tasks.iter().position(|t| t.id == task_id) {
+            Some(idx) => &self.tasks[idx],
+            None => return Ok(()),
+        };
+
+        let now = Utc::now();
+        let mut task_clone = task.clone();
+        let mut needs_task_update = false;
+        let mut needs_checklist_update = false;
+
+        match (layer, focus) {
+            (Layer::TaskItem, Focus::Title) => {
+                if task.title != new_title {
+                    task_clone.title = new_title;
+                    needs_task_update = true;
+                }
+            }
+            (Layer::TaskItem, Focus::Notes) => {
+                let notes = if new_notes.trim().is_empty() {
+                    None
+                } else {
+                    Some(new_notes)
+                };
+                if task.notes != notes {
+                    task_clone.notes = notes;
+                    needs_task_update = true;
+                }
+            }
+            (Layer::ChecklistItem, _) => {
+                // Save checklist item title changes
+                if let Ok(existing_checklist) = self.storage.get_checklist(task_id) {
+                    let has_changes = checklist_items.iter().enumerate().any(|(i, item)| {
+                        existing_checklist.get(i).map(|e| e.title.as_str()) != Some(item.title.as_str())
+                    });
+                    if has_changes {
+                        needs_checklist_update = true;
+                    }
+                }
+            }
+            _ => {
+                // DueDate is saved separately via arrow keys
+                // Checklist in TaskItem layer is saved via replace_checklist
+            }
+        }
+
+        if needs_task_update {
+            task_clone.updated_at = now;
+            self.storage.update_task(&task_clone).map_err(|e| anyhow!(e))?;
+
+            // Update local task list
+            if let Some(idx) = self.tasks.iter().position(|t| t.id == task_id) {
+                self.tasks[idx] = task_clone;
+            }
+        }
+
+        if needs_checklist_update {
+            self.replace_checklist(task_id, checklist_items)
+                .map_err(|e| anyhow!(e))?;
+        }
+
         Ok(())
     }
 
