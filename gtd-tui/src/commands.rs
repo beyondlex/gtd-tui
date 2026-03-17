@@ -264,13 +264,20 @@ impl App {
         }
 
         if keymap.editor.prev_focus.matches(key) {
-            if editor.checklist_index > 0 {
+            if editor.checklist.is_empty() {
+                editor.checklist_index = 0;
+            } else if editor.checklist_index == 0 {
+                editor.checklist_index = editor.checklist.len() - 1;
+            } else {
                 editor.checklist_index -= 1;
             }
         } else if keymap.editor.next_focus.matches(key) {
-            if !editor.checklist.is_empty() {
-                editor.checklist_index =
-                    (editor.checklist_index + 1).min(editor.checklist.len().saturating_sub(1));
+            if editor.checklist.is_empty() {
+                editor.checklist_index = 0;
+            } else if editor.checklist_index >= editor.checklist.len() - 1 {
+                editor.checklist_index = 0;
+            } else {
+                editor.checklist_index += 1;
             }
         } else if keymap.date.edit_mode.matches(key) {
             editor.edit_active = true;
