@@ -54,6 +54,8 @@ pub struct KeysConfig {
     pub view_someday: Option<String>,
     pub select_next: Option<String>,
     pub select_prev: Option<String>,
+    pub select_first: Option<String>,
+    pub select_last: Option<String>,
     pub new_task: Option<String>,
     pub edit_task: Option<String>,
     pub edit_title: Option<String>,

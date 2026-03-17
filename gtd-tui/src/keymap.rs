@@ -39,6 +39,8 @@ pub struct NavigationKeys {
     pub view_someday: KeyBinding,
     pub select_next: KeyBinding,
     pub select_prev: KeyBinding,
+    pub select_first: KeyBinding,
+    pub select_last: KeyBinding,
 }
 
 impl NavigationKeys {
@@ -88,6 +90,16 @@ impl NavigationKeys {
                 ctrl: false,
                 shift: false,
                 key: 'k',
+            },
+            select_first: KeyBinding {
+                ctrl: false,
+                shift: false,
+                key: 'g',
+            },
+            select_last: KeyBinding {
+                ctrl: false,
+                shift: true,
+                key: 'g',
             },
         }
     }
@@ -380,6 +392,16 @@ impl Keymap {
                     .as_deref()
                     .and_then(parse_key_binding)
                     .unwrap_or(default.navigation.select_prev),
+                select_first: config
+                    .select_first
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.navigation.select_first),
+                select_last: config
+                    .select_last
+                    .as_deref()
+                    .and_then(parse_key_binding)
+                    .unwrap_or(default.navigation.select_last),
             },
             task: TaskKeys {
                 new_task: config

@@ -30,6 +30,7 @@ pub struct App {
     pub keymap: Keymap,
     pub cursor_visible: bool,
     pub delete_confirm: Option<DeleteTarget>,
+    pub pending_g: bool,
     last_blink: Instant,
     storage: SqliteStorage,
 }
@@ -72,6 +73,7 @@ impl App {
             keymap,
             cursor_visible: true,
             delete_confirm: None,
+            pending_g: false,
             last_blink: Instant::now(),
             storage,
         };

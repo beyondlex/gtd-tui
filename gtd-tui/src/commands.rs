@@ -44,8 +44,27 @@ impl App {
             self.view = View::Someday;
         } else if keymap.navigation.select_next.matches(key) || key.code == KeyCode::Down {
             self.select_next();
+            self.pending_g = false;
         } else if keymap.navigation.select_prev.matches(key) || key.code == KeyCode::Up {
             self.select_prev();
+            self.pending_g = false;
+        } else if keymap.navigation.select_first.matches(key) {
+            if self.pending_g {
+                self.select_first();
+                self.pending_g = false;
+            } else {
+                self.pending_g = true;
+            }
+        } else if keymap.navigation.select_last.matches(key) {
+            self.select_last();
+            self.pending_g = false;
+        } else if key.code == KeyCode::Char('g') && !keymap.navigation.select_first.matches(key) {
+            if self.pending_g {
+                self.select_first();
+                self.pending_g = false;
+            } else {
+                self.pending_g = true;
+            }
         } else if keymap.task.new_task.matches(key) {
             self.start_new_task();
         } else if keymap.task.edit_task.matches(key) && self.view == View::Inbox {
@@ -839,6 +858,18 @@ impl App {
             self.selected = self.tasks.len() - 1;
         } else {
             self.selected -= 1;
+        }
+    }
+
+    pub fn select_first(&mut self) {
+        if !self.tasks.is_empty() {
+            self.selected = 0;
+        }
+    }
+
+    pub fn select_last(&mut self) {
+        if !self.tasks.is_empty() {
+            self.selected = self.tasks.len() - 1;
         }
     }
 
