@@ -816,7 +816,11 @@ impl App {
             self.selected = 0;
             return;
         }
-        self.selected = (self.selected + 1).min(self.tasks.len() - 1);
+        if self.selected >= self.tasks.len() - 1 {
+            self.selected = 0;
+        } else {
+            self.selected += 1;
+        }
     }
 
     pub fn select_prev(&mut self) {
@@ -824,7 +828,11 @@ impl App {
             self.selected = 0;
             return;
         }
-        self.selected = self.selected.saturating_sub(1);
+        if self.selected == 0 {
+            self.selected = self.tasks.len() - 1;
+        } else {
+            self.selected -= 1;
+        }
     }
 
     pub fn switch_task(&mut self, delta: i32) -> Result<()> {
