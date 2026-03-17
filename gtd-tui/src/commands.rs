@@ -501,17 +501,13 @@ impl App {
             .storage
             .get_checklist(task.id)
             .map_err(|e| anyhow!(e))?;
-        let checklist = if checklist_items.is_empty() {
-            vec![ChecklistDraft::new()]
-        } else {
-            checklist_items
-                .into_iter()
-                .map(|item| ChecklistDraft {
-                    title: item.title,
-                    checked: item.is_checked,
-                })
-                .collect()
-        };
+        let checklist: Vec<ChecklistDraft> = checklist_items
+            .into_iter()
+            .map(|item| ChecklistDraft {
+                title: item.title,
+                checked: item.is_checked,
+            })
+            .collect();
         let today = Utc::now().date_naive();
         let seed_date = task.due_date.unwrap_or(today);
         self.editor = Some(EditorState {
