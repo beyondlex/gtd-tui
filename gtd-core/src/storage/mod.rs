@@ -39,6 +39,7 @@ pub trait Storage: Send + Sync {
     fn create_checklist_item(&self, item: &ChecklistItem) -> StorageResult<()>;
     fn update_checklist_item(&self, item: &ChecklistItem) -> StorageResult<()>;
     fn delete_checklist_item(&self, id: Uuid) -> StorageResult<()>;
+    fn delete_checklist_for_task(&self, task_id: Uuid) -> StorageResult<()>;
 
     fn get_hotkeys(&self) -> StorageResult<Vec<HotkeyConfig>>;
     fn save_hotkey(&self, config: &HotkeyConfig) -> StorageResult<()>;

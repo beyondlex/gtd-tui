@@ -4,7 +4,7 @@ use std::sync::Mutex;
 
 use chrono::{DateTime, NaiveDate, Utc};
 use rusqlite::types::{Type, Value};
-use rusqlite::{Connection, params, params_from_iter};
+use rusqlite::{params, params_from_iter, Connection};
 use uuid::Uuid;
 
 use crate::models::{
@@ -422,6 +422,10 @@ impl Storage for SqliteStorage {
             .conn
             .lock()
             .map_err(|_| "sqlite connection lock poisoned")?;
+        conn.execute(
+            "DELETE FROM checklist_items WHERE task_id = ?",
+            params![id.to_string()],
+        )?;
         conn.execute("DELETE FROM tasks WHERE id = ?", params![id.to_string()])?;
         Ok(())
     }
@@ -536,6 +540,18 @@ impl Storage for SqliteStorage {
         Ok(())
     }
 
+    fn delete_checklist_for_task(&self, task_id: Uuid) -> StorageResult<()> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| "sqlite connection lock poisoned")?;
+        conn.execute(
+            "DELETE FROM checklist_items WHERE task_id = ?",
+            params![task_id.to_string()],
+        )?;
+        Ok(())
+    }
+
     fn get_hotkeys(&self) -> StorageResult<Vec<HotkeyConfig>> {
         let conn = self
             .conn
@@ -610,7 +626,11 @@ fn parse_task_status(value: &str) -> StorageResult<TaskStatus> {
 }
 
 fn bool_to_i32(value: bool) -> i32 {
-    if value { 1 } else { 0 }
+    if value {
+        1
+    } else {
+        0
+    }
 }
 
 fn i32_to_bool(value: i32) -> bool {
