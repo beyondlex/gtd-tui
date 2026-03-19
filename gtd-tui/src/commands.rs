@@ -828,6 +828,9 @@ impl App {
                             editor.checklist_index = editor.checklist.len() - 1;
                         }
                     }
+                    if let Some(task_id) = editor.task_id {
+                        self.replace_checklist(task_id, editor.checklist.clone())?;
+                    }
                 }
             }
             None => {}
