@@ -815,7 +815,7 @@ impl App {
                 self.refresh_tasks()?;
             }
             Some(DeleteTarget::ChecklistItem) => {
-                if let Some(editor) = &mut self.editor {
+                let (task_id, checklist) = if let Some(editor) = &mut self.editor {
                     let deleted_index = editor.checklist_index;
                     if deleted_index < editor.checklist.len() {
                         editor.checklist.remove(deleted_index);
@@ -828,9 +828,12 @@ impl App {
                             editor.checklist_index = editor.checklist.len() - 1;
                         }
                     }
-                    if let Some(task_id) = editor.task_id {
-                        self.replace_checklist(task_id, editor.checklist.clone())?;
-                    }
+                    editor.task_id.map(|id| (id, editor.checklist.clone()))
+                } else {
+                    None
+                };
+                if let Some((task_id, checklist)) = task_id {
+                    self.replace_checklist(task_id, checklist)?;
                 }
             }
             None => {}
