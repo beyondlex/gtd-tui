@@ -446,11 +446,13 @@ impl App {
     }
 
     pub fn on_key_confirm_delete(&mut self, key: KeyEvent) -> Result<()> {
+        let target = self.delete_confirm;
+
         if key.code == KeyCode::Char('y') || key.code == KeyCode::Enter {
             self.confirm_delete()?;
         }
 
-        match self.delete_confirm {
+        match target {
             Some(DeleteTarget::ChecklistItem) => {
                 self.mode = Mode::Editing;
             }
