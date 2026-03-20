@@ -20,10 +20,8 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
 
     for (index, task) in app.tasks.iter().enumerate() {
         let selected = index == app.selected && app.mode == Mode::Normal;
-        let status = match task.status {
-            gtd_core::models::TaskStatus::Completed => "[x]",
-            _ => "[ ]",
-        };
+        let is_completed = matches!(task.status, gtd_core::models::TaskStatus::Completed);
+        let status = if is_completed { "[x]" } else { "[ ]" };
         let due = task
             .due_date
             .map(|d| format!(" {}", d.format("%m-%d")))
@@ -31,23 +29,49 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
         let prefix = if selected { ">" } else { " " };
 
         if selected {
+            let title_style = if is_completed {
+                app.editor_theme.completed
+            } else {
+                app.editor_theme.task_selected
+            };
+            let status_style = if is_completed {
+                app.editor_theme.completed
+            } else {
+                Style::default()
+            };
+            let due_style = if is_completed {
+                app.editor_theme.completed
+            } else {
+                app.editor_theme.date_label
+            };
             lines.push(Line::from(vec![
                 Span::raw(prefix),
                 Span::raw(" "),
-                Span::raw(status),
+                Span::styled(status, status_style),
                 Span::raw(" "),
-                Span::styled(&task.title, app.editor_theme.task_selected),
-                Span::styled(due, app.editor_theme.date_label),
+                Span::styled(&task.title, title_style),
+                Span::styled(due, due_style),
             ]));
         } else {
-            lines.push(Line::from(vec![
-                Span::raw(prefix),
-                Span::raw(" "),
-                Span::raw(status),
-                Span::raw(" "),
-                Span::raw(&task.title),
-                Span::styled(due, app.editor_theme.date_label),
-            ]));
+            if is_completed {
+                lines.push(Line::from(vec![
+                    Span::raw(prefix),
+                    Span::raw(" "),
+                    Span::styled(status, app.editor_theme.completed),
+                    Span::raw(" "),
+                    Span::styled(&task.title, app.editor_theme.completed),
+                    Span::styled(due, app.editor_theme.completed),
+                ]));
+            } else {
+                lines.push(Line::from(vec![
+                    Span::raw(prefix),
+                    Span::raw(" "),
+                    Span::raw(status),
+                    Span::raw(" "),
+                    Span::raw(&task.title),
+                    Span::styled(due, app.editor_theme.date_label),
+                ]));
+            }
         }
 
         if let Some(editor) = &app.editor {
@@ -281,13 +305,33 @@ fn editor_lines<'a>(app: &'a App, editor: &'a crate::app::EditorState) -> Vec<Li
                     app.editor_theme.checklist_edit,
                 )));
             } else if selected {
+                let title_style = if item.checked {
+                    app.editor_theme.completed
+                } else {
+                    app.editor_theme.checklist_item_selected
+                };
+                let checkbox_style = if item.checked {
+                    app.editor_theme.completed
+                } else {
+                    Style::default()
+                };
                 out.push(Line::from(vec![
                     Span::raw("    "),
                     Span::raw(marker),
                     Span::raw(" "),
-                    Span::raw(checkbox),
+                    Span::styled(checkbox, checkbox_style),
                     Span::raw(" "),
-                    Span::styled(&item.title, app.editor_theme.checklist_item_selected),
+                    Span::styled(&item.title, title_style),
+                    Span::raw(cursor),
+                ]));
+            } else if item.checked {
+                out.push(Line::from(vec![
+                    Span::raw("    "),
+                    Span::raw(marker),
+                    Span::raw(" "),
+                    Span::styled(checkbox, app.editor_theme.completed),
+                    Span::raw(" "),
+                    Span::styled(&item.title, app.editor_theme.completed),
                     Span::raw(cursor),
                 ]));
             } else {

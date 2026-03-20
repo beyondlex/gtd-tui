@@ -42,6 +42,7 @@ pub struct EditorThemeConfig {
     pub field_notes: Option<String>,
     pub field_due: Option<String>,
     pub field_checklist: Option<String>,
+    pub completed: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]

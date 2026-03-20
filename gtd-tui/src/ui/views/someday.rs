@@ -11,10 +11,8 @@ pub fn render(frame: &mut Frame, area: ratatui::layout::Rect, app: &App) {
 
     for (index, task) in app.tasks.iter().enumerate() {
         let selected = index == app.selected && app.mode == Mode::Normal;
-        let status = match task.status {
-            gtd_core::models::TaskStatus::Completed => "[x]",
-            _ => "[ ]",
-        };
+        let is_completed = matches!(task.status, gtd_core::models::TaskStatus::Completed);
+        let status = if is_completed { "[x]" } else { "[ ]" };
         let due = task
             .due_date
             .map(|d| format!(" ({})", d.format("%Y-%m-%d")))
@@ -22,13 +20,37 @@ pub fn render(frame: &mut Frame, area: ratatui::layout::Rect, app: &App) {
         let prefix = if selected { ">" } else { " " };
 
         if selected {
+            let title_style = if is_completed {
+                app.editor_theme.completed
+            } else {
+                app.editor_theme.task_selected
+            };
+            let status_style = if is_completed {
+                app.editor_theme.completed
+            } else {
+                Style::default()
+            };
+            let due_style = if is_completed {
+                app.editor_theme.completed
+            } else {
+                Style::default()
+            };
             lines.push(Line::from(vec![
                 Span::raw(prefix),
                 Span::raw(" "),
-                Span::raw(status),
+                Span::styled(status, status_style),
                 Span::raw(" "),
-                Span::styled(&task.title, app.editor_theme.task_selected),
-                Span::raw(due),
+                Span::styled(&task.title, title_style),
+                Span::styled(due, due_style),
+            ]));
+        } else if is_completed {
+            lines.push(Line::from(vec![
+                Span::raw(prefix),
+                Span::raw(" "),
+                Span::styled(status, app.editor_theme.completed),
+                Span::raw(" "),
+                Span::styled(&task.title, app.editor_theme.completed),
+                Span::styled(due, app.editor_theme.completed),
             ]));
         } else {
             lines.push(Line::from(format!("{prefix} {status} {}{due}", task.title)));
