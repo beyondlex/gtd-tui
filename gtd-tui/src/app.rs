@@ -7,14 +7,13 @@ mod keymap;
 #[path = "state.rs"]
 mod state;
 
-pub use editor::{ChecklistDraft, DatePickerState, EditorState};
-pub use keymap::{KeyBinding, Keymap};
+pub use editor::{EditorState};
+pub use keymap::Keymap;
 pub use state::{DeleteTarget, Focus, Layer, Mode, View};
 
 use std::time::Instant;
 
 use anyhow::Result;
-use chrono::{Datelike, NaiveDate};
 use gtd_core::models::Task;
 use gtd_core::storage::SqliteStorage;
 
@@ -27,6 +26,7 @@ pub struct App {
     pub editor: Option<EditorState>,
     pub calendar_theme: crate::ui::theme::CalendarTheme,
     pub editor_theme: crate::ui::theme::EditorTheme,
+    #[allow(dead_code)]
     pub keymap: Keymap,
     pub cursor_visible: bool,
     pub delete_confirm: Option<DeleteTarget>,
@@ -105,6 +105,8 @@ mod tests {
 
     #[test]
     fn parses_uppercase_binding_as_shifted_key() {
+        use crate::app::keymap::KeyBinding;
+
         let binding = keymap::parse_key_binding("A").expect("binding");
 
         assert_eq!(

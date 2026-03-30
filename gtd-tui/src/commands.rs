@@ -4,7 +4,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use gtd_core::storage::Storage;
 use uuid::Uuid;
 
-use super::editor::{ensure_checklist_not_empty, ChecklistDraft, DatePickerState, EditorState};
+use super::editor::{ChecklistDraft, DatePickerState, EditorState};
 use super::state::{DeleteTarget, Focus, Layer, Mode, View};
 use super::{get_keymap, App};
 
@@ -877,6 +877,7 @@ impl App {
         }
     }
 
+    #[allow(dead_code)]
     pub fn switch_task(&mut self, delta: i32) -> Result<()> {
         if self.tasks.is_empty() {
             return Ok(());

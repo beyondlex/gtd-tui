@@ -41,13 +41,6 @@ impl ChecklistDraft {
             checked: false,
         }
     }
-
-    pub fn with_title(title: impl Into<String>) -> Self {
-        Self {
-            title: title.into(),
-            checked: false,
-        }
-    }
 }
 
 impl Default for ChecklistDraft {
