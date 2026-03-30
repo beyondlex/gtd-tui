@@ -12,7 +12,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
     // Check if we should show editor before the first task (insert_at_beginning)
     if let Some(editor) = &app.editor {
         if editor.insert_at_beginning && editor.task_id.is_none() {
-            lines.push(Line::from("  ┌──────────────────────────────────────┐"));
+            lines.push(Line::from("  ┌─ NEW TASK ───────────────────────────┐"));
             lines.extend(editor_lines(app, editor));
             lines.push(Line::from("  └──────────────────────────────────────┘"));
         }
@@ -85,7 +85,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
             if should_show_editor {
                 // Add separator for new task
                 if editor.task_id.is_none() {
-                    lines.push(Line::from("  ┌──────────────────────────────────────┐"));
+                    lines.push(Line::from("  ┌─ NEW TASK ───────────────────────────┐"));
                 }
                 lines.extend(editor_lines(app, editor));
                 // Add bottom separator for new task
