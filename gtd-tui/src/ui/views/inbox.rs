@@ -19,16 +19,22 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
     }
 
     for (index, task) in app.tasks.iter().enumerate() {
+        // Check if this task is being edited
+        let is_editing = app.mode == Mode::Editing
+            && app.editor.as_ref().map(|e| e.task_id == Some(task.id)).unwrap_or(false);
+        
+        // Normal selection (only in Normal mode)
         let selected = index == app.selected && app.mode == Mode::Normal;
+        
         let is_completed = matches!(task.status, gtd_core::models::TaskStatus::Completed);
         let status = if is_completed { "[x]" } else { "[ ]" };
         let due = task
             .due_date
             .map(|d| format!(" {}", d.format("%m-%d")))
             .unwrap_or_default();
-        let prefix = if selected { ">" } else { " " };
+        let prefix = if selected || is_editing { ">" } else { " " };
 
-        if selected {
+        if selected || is_editing {
             let title_style = if is_completed {
                 app.editor_theme.completed
             } else {
