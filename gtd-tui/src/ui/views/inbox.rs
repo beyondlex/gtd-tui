@@ -234,7 +234,7 @@ fn editor_lines<'a>(app: &'a App, editor: &'a crate::app::EditorState) -> Vec<Li
         ),
     ]));
     if editor.focus == Focus::DueDate && editor.edit_active {
-        out.push(Line::from(""));
+        // out.push(Line::from(""));
         out.extend(calendar_lines(
             editor,
             app.calendar_theme,
@@ -292,7 +292,7 @@ fn editor_lines<'a>(app: &'a App, editor: &'a crate::app::EditorState) -> Vec<Li
     } else {
         for (idx, item) in editor.checklist.iter().enumerate() {
             let selected = editor.focus == Focus::Checklist && idx == editor.checklist_index;
-            let marker = if selected { ">" } else { " " };
+            let marker = if selected { "   >" } else { "    " };
             let cursor = if selected && app.cursor_visible && editor.edit_active {
                 "|"
             } else {
@@ -348,9 +348,9 @@ fn editor_lines<'a>(app: &'a App, editor: &'a crate::app::EditorState) -> Vec<Li
 
 fn focus_prefix(active: bool) -> &'static str {
     if active {
-        ">"
+        "   >"
     } else {
-        " "
+        "    "
     }
 }
 
@@ -371,7 +371,7 @@ fn calendar_lines(
     let days_in_month = crate::app::days_in_month(year, month);
 
     let mut lines: Vec<Line<'static>> = Vec::new();
-    lines.push(Line::from(format!("    {} {}", cursor.format("%B"), year)));
+    lines.push(Line::from(format!("        {} {}", cursor.format("%B"), year)));
 
     let header = [
         ("Mo", false),
@@ -382,7 +382,7 @@ fn calendar_lines(
         ("Sa", true),
         ("Su", true),
     ];
-    let mut spans = vec![Span::raw("    ")];
+    let mut spans = vec![Span::raw("        ")];
     for (label, weekend) in header {
         let style = if weekend {
             theme.weekend
@@ -414,7 +414,7 @@ fn calendar_lines(
     }
 
     for week in weeks.iter() {
-        let mut spans = vec![Span::raw("    ")];
+        let mut spans = vec![Span::raw("        ")];
         for day in week.iter() {
             if let Some(date) = day {
                 let is_cursor = *date == cursor;
