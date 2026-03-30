@@ -486,7 +486,7 @@ impl App {
             due_date: None,
             checklist: vec![ChecklistDraft::new()],
             checklist_index: 0,
-            edit_active: false,
+            edit_active: true,
             focus: Focus::Title,
             layer: Layer::TaskItem,
             date_picker: DatePickerState::new(today),

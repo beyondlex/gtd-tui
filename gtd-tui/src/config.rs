@@ -43,6 +43,7 @@ pub struct EditorThemeConfig {
     pub field_due: Option<String>,
     pub field_checklist: Option<String>,
     pub completed: Option<String>,
+    pub cursor: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]

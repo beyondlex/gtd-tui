@@ -87,6 +87,7 @@ bracket = "magenta"
 
 [theme.editor]
 checklist_edit = "lightyellow bold"
+cursor = "yellow"
 
 [keys]
 quit = "q"
@@ -138,6 +139,22 @@ save_edit = "ctrl+s"
 ### 主题颜色
 
 可用颜色：black, red, green, yellow, blue, magenta, cyan, gray, darkgray, lightred, lightgreen, lightyellow, lightblue, lightmagenta, lightcyan, white, reset。
+
+可配置的主题属性：
+
+**[theme.editor]**
+| 属性 | 默认值 | 说明 |
+|------|--------|------|
+| `checklist_edit` | `lightyellow bold` | 编辑模式下的文本样式 |
+| `task_selected` | `blue bold` | 选中任务的样式 |
+| `date_label` | `darkgray bold` | 日期标签样式 |
+| `checklist_item_selected` | `blue bold` | 选中 checklist 项的样式 |
+| `field_title` | `cyan bold` | Title 字段标签样式 |
+| `field_notes` | `green bold` | Notes 字段标签样式 |
+| `field_due` | `yellow bold` | Due 字段标签样式 |
+| `field_checklist` | `magenta bold` | Checklist 字段标签样式 |
+| `completed` | `darkgray` | 已完成任务的样式 |
+| `cursor` | `yellow` | 编辑时光标的颜色 |
 
 ## 说明
 

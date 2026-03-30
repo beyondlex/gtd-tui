@@ -22,6 +22,7 @@ pub struct EditorTheme {
     pub field_due: Style,
     pub field_checklist: Style,
     pub completed: Style,
+    pub cursor: Style,
 }
 
 impl CalendarTheme {
@@ -117,6 +118,8 @@ impl EditorTheme {
                 .fg(Color::DarkGray)
                 .add_modifier(Modifier::CROSSED_OUT)
         });
+        let cursor = parse_style(config.cursor.as_deref())
+            .unwrap_or_else(|| Style::default().fg(Color::Yellow));
         Self {
             checklist_edit,
             task_selected,
@@ -127,6 +130,7 @@ impl EditorTheme {
             field_due,
             field_checklist,
             completed,
+            cursor,
         }
     }
 }
@@ -161,6 +165,7 @@ impl Default for EditorTheme {
             completed: Style::default()
                 .fg(Color::DarkGray)
                 .add_modifier(Modifier::CROSSED_OUT),
+            cursor: Style::default().fg(Color::Yellow),
         }
     }
 }

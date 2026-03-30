@@ -175,10 +175,13 @@ fn editor_lines<'a>(app: &'a App, editor: &'a crate::app::EditorState) -> Vec<Li
         Style::default()
     };
 
+    let cursor_style = app.editor_theme.cursor;
+
     let title_line = if editor.focus == Focus::Title && editor.edit_active {
         Line::from(vec![
             Span::styled(format!("  {title_prefix} Title: "), title_field_style),
-            Span::styled(format!("{}{}", display_title, title_cursor), title_style),
+            Span::styled(display_title, title_style),
+            Span::styled(title_cursor, cursor_style),
         ])
     } else {
         Line::from(vec![
@@ -205,7 +208,8 @@ fn editor_lines<'a>(app: &'a App, editor: &'a crate::app::EditorState) -> Vec<Li
     let notes_line = if editor.focus == Focus::Notes && editor.edit_active {
         Line::from(vec![
             Span::styled(format!("  {notes_prefix} Notes: "), notes_field_style),
-            Span::styled(format!("{}{}", editor.notes, notes_cursor), notes_style),
+            Span::styled(editor.notes.clone(), notes_style),
+            Span::styled(notes_cursor, cursor_style),
         ])
     } else {
         Line::from(vec![
@@ -300,10 +304,15 @@ fn editor_lines<'a>(app: &'a App, editor: &'a crate::app::EditorState) -> Vec<Li
             };
             let checkbox = if item.checked { "[x]" } else { "[ ]" };
             if selected && editor.edit_active {
-                out.push(Line::from(Span::styled(
-                    format!("    {marker} {checkbox} {}{cursor}", item.title),
-                    app.editor_theme.checklist_edit,
-                )));
+                out.push(Line::from(vec![
+                    Span::raw("    "),
+                    Span::raw(marker),
+                    Span::raw(" "),
+                    Span::styled(checkbox, app.editor_theme.checklist_edit),
+                    Span::raw(" "),
+                    Span::styled(item.title.clone(), app.editor_theme.checklist_edit),
+                    Span::styled(cursor, cursor_style),
+                ]));
             } else if selected {
                 let title_style = if item.checked {
                     app.editor_theme.completed
@@ -315,30 +324,66 @@ fn editor_lines<'a>(app: &'a App, editor: &'a crate::app::EditorState) -> Vec<Li
                 } else {
                     Style::default()
                 };
-                out.push(Line::from(vec![
-                    Span::raw("    "),
-                    Span::raw(marker),
-                    Span::raw(" "),
-                    Span::styled(checkbox, checkbox_style),
-                    Span::raw(" "),
-                    Span::styled(&item.title, title_style),
-                    Span::raw(cursor),
-                ]));
+                if editor.edit_active {
+                    out.push(Line::from(vec![
+                        Span::raw("    "),
+                        Span::raw(marker),
+                        Span::raw(" "),
+                        Span::styled(checkbox, checkbox_style),
+                        Span::raw(" "),
+                        Span::styled(&item.title, title_style),
+                        Span::styled(cursor, cursor_style),
+                    ]));
+                } else {
+                    out.push(Line::from(vec![
+                        Span::raw("    "),
+                        Span::raw(marker),
+                        Span::raw(" "),
+                        Span::styled(checkbox, checkbox_style),
+                        Span::raw(" "),
+                        Span::styled(&item.title, title_style),
+                        Span::raw(cursor),
+                    ]));
+                }
             } else if item.checked {
-                out.push(Line::from(vec![
-                    Span::raw("    "),
-                    Span::raw(marker),
-                    Span::raw(" "),
-                    Span::styled(checkbox, app.editor_theme.completed),
-                    Span::raw(" "),
-                    Span::styled(&item.title, app.editor_theme.completed),
-                    Span::raw(cursor),
-                ]));
+                if editor.edit_active {
+                    out.push(Line::from(vec![
+                        Span::raw("    "),
+                        Span::raw(marker),
+                        Span::raw(" "),
+                        Span::styled(checkbox, app.editor_theme.completed),
+                        Span::raw(" "),
+                        Span::styled(&item.title, app.editor_theme.completed),
+                        Span::styled(cursor, cursor_style),
+                    ]));
+                } else {
+                    out.push(Line::from(vec![
+                        Span::raw("    "),
+                        Span::raw(marker),
+                        Span::raw(" "),
+                        Span::styled(checkbox, app.editor_theme.completed),
+                        Span::raw(" "),
+                        Span::styled(&item.title, app.editor_theme.completed),
+                        Span::raw(cursor),
+                    ]));
+                }
             } else {
-                out.push(Line::from(format!(
-                    "    {marker} {checkbox} {}{cursor}",
-                    item.title
-                )));
+                if editor.edit_active {
+                    out.push(Line::from(vec![
+                        Span::raw("    "),
+                        Span::raw(marker),
+                        Span::raw(" "),
+                        Span::raw(checkbox),
+                        Span::raw(" "),
+                        Span::raw(&item.title),
+                        Span::styled(cursor, cursor_style),
+                    ]));
+                } else {
+                    out.push(Line::from(format!(
+                        "    {marker} {checkbox} {}{cursor}",
+                        item.title
+                    )));
+                }
             }
         }
     }
