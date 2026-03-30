@@ -6,15 +6,23 @@ use ratatui::Frame;
 
 use crate::app::{App, Focus, Layer, Mode};
 
+// Global indentation constants
+const INDENT_BASE: &str = "    "; // 4 spaces for main content indentation
+const INDENT_EDITOR: &str = "      "; // 2 spaces for editor internal indentation
+
+// Combined indentation for nested elements (INDENT_BASE + component indent)
+const INDENT_BASE_CHECKLIST: &str = "          "; // INDENT_BASE + 4 spaces for checklist
+const INDENT_BASE_CALENDAR: &str = "            "; // INDENT_BASE + 4 spaces for calendar
+
 pub fn render(frame: &mut Frame, area: Rect, app: &App) {
     let mut lines: Vec<Line> = Vec::new();
 
     // Check if we should show editor before the first task (insert_at_beginning)
     if let Some(editor) = &app.editor {
         if editor.insert_at_beginning && editor.task_id.is_none() {
-            lines.push(Line::from("  ┌─ NEW TASK ───────────────────────────┐"));
+            lines.push(Line::from(format!("{}┌─ NEW TASK ───────────────────────────┐", INDENT_BASE)));
             lines.extend(editor_lines(app, editor));
-            lines.push(Line::from("  └──────────────────────────────────────┘"));
+            lines.push(Line::from(format!("{}└──────────────────────────────────────┘", INDENT_BASE)));
         }
     }
 
@@ -51,6 +59,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
                 app.editor_theme.date_label
             };
             lines.push(Line::from(vec![
+                Span::raw(INDENT_BASE),
                 Span::raw(prefix),
                 Span::raw(" "),
                 Span::styled(status, status_style),
@@ -61,6 +70,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
         } else {
             if is_completed {
                 lines.push(Line::from(vec![
+                    Span::raw(INDENT_BASE),
                     Span::raw(prefix),
                     Span::raw(" "),
                     Span::styled(status, app.editor_theme.completed),
@@ -70,6 +80,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
                 ]));
             } else {
                 lines.push(Line::from(vec![
+                    Span::raw(INDENT_BASE),
                     Span::raw(prefix),
                     Span::raw(" "),
                     Span::raw(status),
@@ -91,12 +102,12 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
             if should_show_editor {
                 // Add separator for new task
                 if editor.task_id.is_none() {
-                    lines.push(Line::from("  ┌─ NEW TASK ───────────────────────────┐"));
+                    lines.push(Line::from(format!("{}┌─ NEW TASK ───────────────────────────┐", INDENT_BASE)));
                 }
                 lines.extend(editor_lines(app, editor));
                 // Add bottom separator for new task
                 if editor.task_id.is_none() {
-                    lines.push(Line::from("  └──────────────────────────────────────┘"));
+                    lines.push(Line::from(format!("{}└──────────────────────────────────────┘", INDENT_BASE)));
                 }
             }
         }
@@ -106,7 +117,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
         if let Some(editor) = &app.editor {
             lines.extend(editor_lines(app, editor));
         } else {
-            lines.push(Line::from("No tasks. Press n to add one."));
+            lines.push(Line::from(format!("{}No tasks. Press n to add one.", INDENT_BASE)));
         }
     }
 
@@ -185,13 +196,13 @@ fn editor_lines<'a>(app: &'a App, editor: &'a crate::app::EditorState) -> Vec<Li
 
     let title_line = if editor.focus == Focus::Title && editor.edit_active {
         Line::from(vec![
-            Span::styled(format!("  {title_prefix} Title: "), title_field_style),
+            Span::styled(format!("{}{} Title: ", INDENT_EDITOR, title_prefix), title_field_style),
             Span::styled(display_title, title_style),
             Span::styled(title_cursor, cursor_style),
         ])
     } else {
         Line::from(vec![
-            Span::styled(format!("  {title_prefix} Title: "), title_field_style),
+            Span::styled(format!("{}{} Title: ", INDENT_EDITOR, title_prefix), title_field_style),
             Span::styled(format!("{}{}", display_title, title_cursor), title_style),
         ])
     };
@@ -213,13 +224,13 @@ fn editor_lines<'a>(app: &'a App, editor: &'a crate::app::EditorState) -> Vec<Li
 
     let notes_line = if editor.focus == Focus::Notes && editor.edit_active {
         Line::from(vec![
-            Span::styled(format!("  {notes_prefix} Notes: "), notes_field_style),
+            Span::styled(format!("{}{} Notes: ", INDENT_EDITOR, notes_prefix), notes_field_style),
             Span::styled(editor.notes.clone(), notes_style),
             Span::styled(notes_cursor, cursor_style),
         ])
     } else {
         Line::from(vec![
-            Span::styled(format!("  {notes_prefix} Notes: "), notes_field_style),
+            Span::styled(format!("{}{} Notes: ", INDENT_EDITOR, notes_prefix), notes_field_style),
             Span::styled(format!("{}{}", editor.notes, notes_cursor), notes_style),
         ])
     };
@@ -233,7 +244,7 @@ fn editor_lines<'a>(app: &'a App, editor: &'a crate::app::EditorState) -> Vec<Li
     out.push(title_line);
     out.push(notes_line);
     out.push(Line::from(vec![
-        Span::styled(format!("  {due_prefix} Due: "), due_field_style),
+        Span::styled(format!("{}{} Due: ", INDENT_EDITOR, due_prefix), due_field_style),
         Span::styled(
             format!("{} ", due_label),
             Style::default().fg(Color::DarkGray),
@@ -269,7 +280,7 @@ fn editor_lines<'a>(app: &'a App, editor: &'a crate::app::EditorState) -> Vec<Li
     let checklist_header = if editor.focus == Focus::Checklist && editor.edit_active {
         Line::from(vec![
             Span::styled(
-                format!("  {checklist_prefix} Checklist: "),
+                format!("{}{} Checklist: ", INDENT_EDITOR, checklist_prefix),
                 checklist_field_style,
             ),
             Span::styled("(editing)", app.editor_theme.checklist_edit),
@@ -277,7 +288,7 @@ fn editor_lines<'a>(app: &'a App, editor: &'a crate::app::EditorState) -> Vec<Li
     } else if editor.focus == Focus::Checklist && editor.layer == Layer::ChecklistItem {
         Line::from(vec![
             Span::styled(
-                format!("  {checklist_prefix} Checklist: "),
+                format!("{}{} Checklist: ", INDENT_EDITOR, checklist_prefix),
                 checklist_field_style,
             ),
             Span::styled(count_str, Style::default()),
@@ -285,7 +296,7 @@ fn editor_lines<'a>(app: &'a App, editor: &'a crate::app::EditorState) -> Vec<Li
     } else {
         Line::from(vec![
             Span::styled(
-                format!("  {checklist_prefix} Checklist: "),
+                format!("{}{} Checklist: ", INDENT_EDITOR, checklist_prefix),
                 checklist_field_style,
             ),
             Span::styled(count_str, Style::default()),
@@ -298,11 +309,11 @@ fn editor_lines<'a>(app: &'a App, editor: &'a crate::app::EditorState) -> Vec<Li
     }
 
     if editor.checklist.is_empty() {
-        out.push(Line::from("    - [ ]"));
+        out.push(Line::from(format!("{}- [ ]", INDENT_BASE_CHECKLIST)));
     } else {
         for (idx, item) in editor.checklist.iter().enumerate() {
             let selected = editor.focus == Focus::Checklist && idx == editor.checklist_index;
-            let marker = if selected { "   >" } else { "    " };
+            let marker = if selected { " >" } else { "  " };
             let cursor = if selected && app.cursor_visible && editor.edit_active {
                 "|"
             } else {
@@ -311,7 +322,7 @@ fn editor_lines<'a>(app: &'a App, editor: &'a crate::app::EditorState) -> Vec<Li
             let checkbox = if item.checked { "[x]" } else { "[ ]" };
             if selected && editor.edit_active {
                 out.push(Line::from(vec![
-                    Span::raw("    "),
+                    Span::raw(INDENT_BASE_CHECKLIST),
                     Span::raw(marker),
                     Span::raw(" "),
                     Span::styled(checkbox, app.editor_theme.checklist_edit),
@@ -332,7 +343,7 @@ fn editor_lines<'a>(app: &'a App, editor: &'a crate::app::EditorState) -> Vec<Li
                 };
                 if editor.edit_active {
                     out.push(Line::from(vec![
-                        Span::raw("    "),
+                        Span::raw(INDENT_BASE_CHECKLIST),
                         Span::raw(marker),
                         Span::raw(" "),
                         Span::styled(checkbox, checkbox_style),
@@ -342,7 +353,7 @@ fn editor_lines<'a>(app: &'a App, editor: &'a crate::app::EditorState) -> Vec<Li
                     ]));
                 } else {
                     out.push(Line::from(vec![
-                        Span::raw("    "),
+                        Span::raw(INDENT_BASE_CHECKLIST),
                         Span::raw(marker),
                         Span::raw(" "),
                         Span::styled(checkbox, checkbox_style),
@@ -354,7 +365,7 @@ fn editor_lines<'a>(app: &'a App, editor: &'a crate::app::EditorState) -> Vec<Li
             } else if item.checked {
                 if editor.edit_active {
                     out.push(Line::from(vec![
-                        Span::raw("    "),
+                        Span::raw(INDENT_BASE_CHECKLIST),
                         Span::raw(marker),
                         Span::raw(" "),
                         Span::styled(checkbox, app.editor_theme.completed),
@@ -364,7 +375,7 @@ fn editor_lines<'a>(app: &'a App, editor: &'a crate::app::EditorState) -> Vec<Li
                     ]));
                 } else {
                     out.push(Line::from(vec![
-                        Span::raw("    "),
+                        Span::raw(INDENT_BASE_CHECKLIST),
                         Span::raw(marker),
                         Span::raw(" "),
                         Span::styled(checkbox, app.editor_theme.completed),
@@ -376,7 +387,7 @@ fn editor_lines<'a>(app: &'a App, editor: &'a crate::app::EditorState) -> Vec<Li
             } else {
                 if editor.edit_active {
                     out.push(Line::from(vec![
-                        Span::raw("    "),
+                        Span::raw(INDENT_BASE_CHECKLIST),
                         Span::raw(marker),
                         Span::raw(" "),
                         Span::raw(checkbox),
@@ -386,8 +397,8 @@ fn editor_lines<'a>(app: &'a App, editor: &'a crate::app::EditorState) -> Vec<Li
                     ]));
                 } else {
                     out.push(Line::from(format!(
-                        "    {marker} {checkbox} {}{cursor}",
-                        item.title
+                        "{}{} {} {}{}",
+                        INDENT_BASE_CHECKLIST, marker, checkbox, item.title, cursor
                     )));
                 }
             }
@@ -422,7 +433,7 @@ fn calendar_lines(
     let days_in_month = crate::app::days_in_month(year, month);
 
     let mut lines: Vec<Line<'static>> = Vec::new();
-    lines.push(Line::from(format!("        {} {}", cursor.format("%B"), year)));
+    lines.push(Line::from(format!("{}{} {}", INDENT_BASE_CALENDAR, cursor.format("%B"), year)));
 
     let header = [
         ("Mo", false),
@@ -433,7 +444,7 @@ fn calendar_lines(
         ("Sa", true),
         ("Su", true),
     ];
-    let mut spans = vec![Span::raw("        ")];
+    let mut spans = vec![Span::raw(INDENT_BASE_CALENDAR)];
     for (label, weekend) in header {
         let style = if weekend {
             theme.weekend
@@ -465,7 +476,7 @@ fn calendar_lines(
     }
 
     for week in weeks.iter() {
-        let mut spans = vec![Span::raw("        ")];
+        let mut spans = vec![Span::raw(INDENT_BASE_CALENDAR)];
         for day in week.iter() {
             if let Some(date) = day {
                 let is_cursor = *date == cursor;
